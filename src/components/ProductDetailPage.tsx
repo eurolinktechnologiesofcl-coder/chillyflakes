@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import type { Product } from '../types';
 import { useStore } from '../context/StoreContext';
+import { formatRupees, FREE_SHIPPING_THRESHOLD } from '../utils/currency';
 
 interface ProductDetailPageProps {
   product: Product;
@@ -43,7 +44,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const isWishlisted = isInWishlist(product.id);
   const [selectedImage, setSelectedImage] = useState<string>(product.image);
   const [quantity, setQuantity] = useState<number>(1);
-  const [deliveryPincode, setDeliveryPincode] = useState<string>('M5V 2T6');
+  const [deliveryPincode, setDeliveryPincode] = useState<string>('682001');
   const [pincodeChecked, setPincodeChecked] = useState<boolean>(true);
 
   // Sync selected image when product changes
@@ -374,15 +375,15 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                     </span>
                   )}
                   <span className="text-xs text-[#869584] line-through font-normal">
-                    CAD ${product.originalPrice.toFixed(2)}
+                    {formatRupees(product.originalPrice)}
                   </span>
                   <span className="text-3xl sm:text-4xl font-bold font-serif text-[#203D26]">
-                    CAD ${product.price.toFixed(2)}
+                    {formatRupees(product.price)}
                   </span>
                 </div>
                 {savings > 0 && (
                   <p className="text-xs font-medium text-[#2D4F32]">
-                    You save CAD ${savings.toFixed(2)} on this order
+                    You save {formatRupees(savings)} on this order
                   </p>
                 )}
                 <p className="text-[11px] text-[#869584]">Inclusive of all local craft taxes and sustainable packing.</p>
@@ -401,11 +402,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="font-bold text-[#203D26]">•</span>
-                    <span><strong>Complimentary Gift:</strong> Includes complimentary lavender mini soap bar on orders over $40.</span>
+                    <span><strong>Complimentary Gift:</strong> Includes complimentary lavender mini soap bar on orders over ₹999.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="font-bold text-[#203D26]">•</span>
-                    <span><strong>Free Shipping:</strong> Zero shipping fee across Ontario and Quebec on this artisan item.</span>
+                    <span><strong>Free Shipping:</strong> Zero shipping fee across India on orders above {formatRupees(FREE_SHIPPING_THRESHOLD)}.</span>
                   </li>
                 </ul>
               </div>
@@ -433,7 +434,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   </button>
                 </div>
                 <span className="text-xs text-[#869584]">
-                  Total: <strong className="text-[#203D26]">CAD ${(product.price * quantity).toFixed(2)}</strong>
+                  Total: <strong className="text-[#203D26]">{formatRupees(product.price * quantity)}</strong>
                 </span>
               </div>
 
@@ -452,7 +453,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                       type="text"
                       value={deliveryPincode}
                       onChange={(e) => setDeliveryPincode(e.target.value)}
-                      placeholder="Enter Delivery Postal Code"
+                      placeholder="Enter Delivery PIN Code"
                       className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-[#ECE7DD] bg-[#FAF7F2] focus:bg-white focus:border-[#203D26] focus:outline-none transition-all uppercase"
                     />
                   </div>
@@ -596,11 +597,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 <div className="pt-2 mt-2 border-t border-[#ECE7DD] flex items-center justify-between">
                   <div>
                     <div className="text-xs font-bold text-[#203D26]">
-                      CAD ${relProduct.price.toFixed(2)}
+                      {formatRupees(relProduct.price)}
                     </div>
                     {relProduct.originalPrice > relProduct.price && (
                       <div className="text-[10px] text-[#869584] line-through">
-                        CAD ${relProduct.originalPrice.toFixed(2)}
+                        {formatRupees(relProduct.originalPrice)}
                       </div>
                     )}
                   </div>

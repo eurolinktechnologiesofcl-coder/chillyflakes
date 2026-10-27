@@ -22,7 +22,7 @@ const queryClient = new QueryClient({
 });
 
 // Start MSW whenever VITE_USE_MOCKS !== 'false' (both in dev and on Vercel preview/demos)
-// Vendor auth endpoints are passed through to real Django backend locally via MSW passthrough
+// Vendor auth endpoints can be passed through to a real local backend via MSW passthrough
 async function prepareApp(): Promise<void> {
   if (import.meta.env.VITE_DEMO_MODE === 'true') {
     try {

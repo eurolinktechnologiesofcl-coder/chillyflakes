@@ -52,6 +52,22 @@
   scrollbar-width: none;
 }
 
+/* Infinite marquee: track holds two identical copies and slides by exactly one copy (-50%) */
+@keyframes marquee-x {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+.marquee-track {
+  animation: marquee-x var(--marquee-duration, 38s) linear infinite;
+  will-change: transform;
+}
+.marquee-band:hover .marquee-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { animation: none; }
+}
+
 /* Smooth Image Transitions */
 img {
   image-rendering: auto;

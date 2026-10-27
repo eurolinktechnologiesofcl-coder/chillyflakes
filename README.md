@@ -59,7 +59,7 @@ The application will be accessible at `http://localhost:5173/`.
 
 ### 2. Mock API (MSW) Configuration
 
-The application uses **Mock Service Worker (MSW)** to mock backend endpoints during frontend development without requiring the Django backend to be running.
+The application uses **Mock Service Worker (MSW)** to mock backend endpoints during frontend development without requiring the Node.js backend to be running.
 
 MSW runs **only in development mode** (`import.meta.env.DEV === true`) and is dynamically imported so that mocks are **never bundled into the production build**.
 
@@ -69,9 +69,9 @@ In `.env`:
 # Enable mocks (default in development)
 VITE_USE_MOCKS=true
 
-# Disable mocks to connect to live Django REST Framework backend
+# Disable mocks to connect to the live Node.js backend
 VITE_USE_MOCKS=false
-VITE_API_BASE_URL=http://localhost:8000/api
+VITE_API_BASE_URL=http://localhost:4000/api
 ```
 
 #### Test Scenarios in Mock Mode:
@@ -91,7 +91,7 @@ Selected language is persisted in `localStorage` (language code only) and automa
 
 ### 4. 🎪 Demo Mode (Client Presentation Without Backend)
 
-Demo Mode enables a full walkthrough of the vendor portal with realistic Indian handmade marketplace data without requiring a running Django backend.
+Demo Mode enables a full walkthrough of the vendor portal with realistic Indian handmade marketplace data without requiring a running backend.
 
 #### How to Enable Demo Mode:
 ```bash

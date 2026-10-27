@@ -1,6 +1,6 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { getRecentOrders } from '../../../api/vendorDashboard';
-import type { DrfPaginatedResponse, RecentOrder } from '../../../types/dashboard';
+import type { PaginatedResponse, RecentOrder } from '../../../types/dashboard';
 import type { NormalizedApiError } from '../../../types/auth';
 
 export const recentOrdersQueryKey = (page: number, pageSize: number) =>
@@ -9,8 +9,8 @@ export const recentOrdersQueryKey = (page: number, pageSize: number) =>
 export function useRecentOrders(
   page: number = 1,
   pageSize: number = 5
-): UseQueryResult<DrfPaginatedResponse<RecentOrder>, NormalizedApiError> {
-  return useQuery<DrfPaginatedResponse<RecentOrder>, NormalizedApiError>({
+): UseQueryResult<PaginatedResponse<RecentOrder>, NormalizedApiError> {
+  return useQuery<PaginatedResponse<RecentOrder>, NormalizedApiError>({
     queryKey: recentOrdersQueryKey(page, pageSize),
     queryFn: () => getRecentOrders(page, pageSize),
     staleTime: 30 * 1000,

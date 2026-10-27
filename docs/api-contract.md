@@ -1,9 +1,9 @@
 # ChillyFlakes Marketplace — Vendor API Contract
 
-This document provides the API specifications for the Django REST Framework (DRF) backend team for the Vendor Authentication, Registration, and Dual-Channel OTP Verification flow.
+This document provides the API specifications for the Node.js backend team for the Vendor Authentication, Registration, and Dual-Channel OTP Verification flow.
 
 > **CRITICAL SECURITY REQUIREMENT FOR BACKEND:**
-> Frontend validation is implemented for user experience and instant feedback only. The Django REST Framework backend **MUST enforce all validation rules, uniqueness constraints, sanitization, rate limits, and verification checks independently**. Never trust client-provided payloads.
+> Frontend validation is implemented for user experience and instant feedback only. The backend **MUST enforce all validation rules, uniqueness constraints, sanitization, rate limits, and verification checks independently**. Never trust client-provided payloads.
 
 ---
 
@@ -33,7 +33,7 @@ All error responses across the API follow a standardized JSON envelope:
 
 ## CSRF Protection (`GET /api/v1/csrf/`)
 
-All state-changing endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) require Django CSRF verification.
+All state-changing endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) require CSRF verification (token returned in the `X-CSRFToken` response header and sent back in the `X-CSRFToken` request header).
 
 - **Method:** `GET`
 - **Path:** `/api/v1/csrf/`
@@ -492,10 +492,10 @@ A secure 3-step password reset workflow for sellers with zero email/mobile accou
 
 ---
 
-## 8. DRF Backend Architecture & Security Rules
+## 8. Backend Architecture & Security Rules
 
 1. **Dual OTP Generation & Cryptographic Storage:**
-   - OTPs must be 6 numeric digits generated using a cryptographically secure pseudo-random number generator (`secrets.SystemRandom().randint(100000, 999999)`).
+   - OTPs must be 6 numeric digits generated using a cryptographically secure pseudo-random number generator (`crypto.randomInt(100000, 1000000)`).
    - OTPs must **never be stored in plaintext** in the database or cache. Stored using HMAC-SHA256 with a server secret (`OTP_PEPPER`) and constant-time comparison.
    - OTP validity is strictly **10 minutes**.
 2. **Attempt Limits & Channel Lockout:**
@@ -505,13 +505,13 @@ A secure 3-step password reset workflow for sellers with zero email/mobile accou
    - 30-second minimum cooldown gap between consecutive resends on the same channel or reset session.
    - Maximum 3 resends per hour per channel. The 4th attempt returns `429 too_many_resends`.
 4. **Timing Attack Protection:**
-   - Always verify OTP hashes using constant-time string comparison (`hmac.compare_digest`).
+   - Always verify OTP hashes using constant-time comparison (`crypto.timingSafeEqual`).
 5. **Anti-Enumeration & Privacy:**
    - Public endpoints like password reset request must never reveal whether an account exists.
 6. **Pending Account Lifecycle:**
    - When a user registers, create the record in status `pending_verification`.
    - If a new registration is submitted with an unverified email or mobile matching an existing unverified pending record, the old pending record and OTPs are replaced.
-   - Unverified pending accounts older than 24 hours are removed by a management command (scheduled with Windows Task Scheduler or cron); no Celery requirement for now.
+   - Unverified pending accounts older than 24 hours are removed by a scheduled cleanup job (cron or a scheduled script); no job-queue requirement for now.
 7. **Identification via Cookie (Zero Leaks):**
    - The pending registration and password reset sessions are identified solely through signed, `httpOnly`, `Secure`, and `SameSite=Lax` cookies.
    - The frontend never receives, stores, or sends sensitive internal user IDs or raw tokens in URLs or localStorage.
@@ -527,10 +527,10 @@ A secure 3-step password reset workflow for sellers with zero email/mobile accou
 The seller dashboard provides real-time analytics, inventory monitoring, conscious buyer order management, and store alerts for approved artisans.
 
 ### 9.1 General Rules & Permissions
-- **Permission Requirement:** `IsAuthenticated` and vendor status must strictly be `approved`. Vendors in other statuses (`pending_verification`, `onboarding_incomplete`, `under_review`, `rejected`, `suspended`) are denied access with `403 Forbidden`.
-- **Data Scoping:** Every endpoint strictly scopes data to the authenticated vendor (`request.user.vendor`). A vendor can never view or calculate metrics from another store.
+- **Permission Requirement:** Authenticated vendor session and vendor status must strictly be `approved`. Vendors in other statuses (`pending_verification`, `onboarding_incomplete`, `under_review`, `rejected`, `suspended`) are denied access with `403 Forbidden`.
+- **Data Scoping:** Every endpoint strictly scopes data to the authenticated vendor (resolved from the session). A vendor can never view or calculate metrics from another store.
 - **Monetary Unit Representation:** All monetary values are calculated server-side and transmitted strictly as **integer paise** (e.g., `12450000` paise = ₹1,24,500.00). Frontend formats into INR using Indian digit grouping (`en-IN`).
-- **Pagination Standard:** List endpoints that can grow utilize standard Django REST Framework PageNumberPagination (`{ count, next, previous, results }`).
+- **Pagination Standard:** List endpoints that can grow use page-number pagination with the envelope `{ count, next, previous, results }`.
 
 ---
 
@@ -1070,7 +1070,7 @@ Rejects a product listing, transitioning status from `pending_review` to `reject
 
 1. **Independent Server-Side Validation:**
    - Frontend validation (Zod schema) is implemented strictly for instant client UX and inline error highlighting.
-   - The Django REST Framework backend **MUST independently re-validate every single field**, constraint, and calculation on every request.
+   - The backend **MUST independently re-validate every single field**, constraint, and calculation on every request.
 2. **Lifecycle & Status Progression:**
    - Products are created in `draft` status. A product is **never published directly** by the vendor.
    - Calling `POST /api/v1/vendor/products/{id}/submit/` transitions the listing from `draft` (or `rejected`) to `pending_review`.

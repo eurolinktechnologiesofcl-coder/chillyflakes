@@ -6,13 +6,13 @@ export interface NewsletterSubscribeResponse {
 }
 
 /**
- * Django Newsletter API Service
- * Maps to Django endpoint:
+ * Newsletter API Service
+ * Maps to backend endpoint:
  * - POST /api/newsletter/subscribe/
  */
 export const newsletterApi = {
   /**
-   * Subscribe email to Django newsletter mailing list.
+   * Subscribe email to the newsletter mailing list.
    */
   async subscribe(email: string): Promise<ApiResponse<NewsletterSubscribeResponse>> {
     const fallback: NewsletterSubscribeResponse = {

@@ -43,3 +43,56 @@ export interface Toast {
   message: string;
   type: 'success' | 'info' | 'warning';
 }
+
+export interface BuyerAddress {
+  id: string;
+  fullName: string;
+  phone: string;
+  street: string;
+  landmark?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  type: 'Home' | 'Work' | 'Other';
+  isDefault?: boolean;
+}
+
+export interface BuyerOrder {
+  id: string;
+  createdAt: string;
+  status: 'Placed' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
+  items: CartItem[];
+  subtotal: number;
+  discountAmount: number;
+  deliveryCharge: number;
+  totalAmount: number;
+  shippingAddress: BuyerAddress;
+  paymentMethod: 'cod' | 'upi' | 'card' | 'netbanking';
+  paymentId?: string;
+  deliverySpeed: 'standard' | 'express';
+  estimatedDeliveryDate?: string;
+}
+
+export interface BuyerBooking {
+  id: string;
+  serviceId: string;
+  serviceTitle: string;
+  userName: string;
+  userContact: string;
+  preferredDate: string;
+  preferredTime: string;
+  status: 'Requested' | 'Confirmed' | 'Completed' | 'Cancelled';
+  createdAt: string;
+  price: string;
+}
+
+export interface ProductReview {
+  id: string;
+  productId: string;
+  userName: string;
+  rating: number;
+  title: string;
+  comment: string;
+  createdAt: string;
+  verifiedPurchase: boolean;
+}

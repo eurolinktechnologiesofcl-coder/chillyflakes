@@ -4,7 +4,7 @@ import type { NormalizedApiError } from '../types/auth';
 /**
  * Base URL resolution:
  * If VITE_USE_MOCKS !== 'false' (default), use relative URL '' so MSW intercepts on the current host.
- * If connecting to Django backend, use VITE_API_BASE_URL or fallback to http://localhost:8000/api.
+ * If connecting to the backend, use VITE_API_BASE_URL or fallback to http://localhost:4000/api.
  */
 const mocksEnabled = import.meta.env.VITE_USE_MOCKS !== 'false';
 export const RAW_BASE_URL = (
@@ -12,12 +12,12 @@ export const RAW_BASE_URL = (
     ? import.meta.env.VITE_API_BASE_URL
     : mocksEnabled
     ? ''
-    : 'http://localhost:8000/api'
+    : 'http://localhost:4000/api'
 ).trim().replace(/\/$/, '');
 
 /**
  * In-memory CSRF token storage.
- * As Django uses HttpOnly cookies for CSRF, document.cookie cannot read the token in JavaScript.
+ * As the backend uses HttpOnly cookies for CSRF, document.cookie cannot read the token in JavaScript.
  * The backend exposes the CSRF token in the X-CSRFToken response header of GET /api/v1/csrf/.
  * It is kept strictly in-memory (never localStorage or sessionStorage).
  */
@@ -42,7 +42,7 @@ function extractCsrfFromHeaders(headers: unknown): string | null {
 }
 
 /**
- * Extracts Django CSRF token (checks memory first, fallback to document.cookie).
+ * Extracts the CSRF token (checks memory first, fallback to document.cookie).
  */
 export function getCsrfToken(): string | null {
   if (inMemoryCsrfToken) return inMemoryCsrfToken;
@@ -93,7 +93,7 @@ export async function fetchCsrfToken(reason?: string): Promise<string | null> {
 }
 
 /**
- * Retrieves authentication token (JWT access token or DRF Token) if any.
+ * Retrieves authentication token (JWT access token) if any.
  */
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -154,7 +154,7 @@ axiosClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) 
     await fetchCsrfToken();
   }
 
-  // Django CSRF token
+  // CSRF token
   const csrf = getCsrfToken();
   if (csrf && config.headers && !skipCsrf) {
     config.headers['X-CSRFToken'] = csrf;
@@ -231,7 +231,7 @@ axiosClient.interceptors.response.use(
         if ('fieldErrors' in data && typeof data.fieldErrors === 'object' && data.fieldErrors !== null) {
           fieldErrors = data.fieldErrors as Record<string, string[]>;
         } else {
-          // Check for standard DRF error dictionary e.g. { email: ["already exists"] }
+          // Fallback: flat field-error dictionary e.g. { email: ["already exists"] }
           const extracted: Record<string, string[]> = {};
           let foundField = false;
           for (const [key, val] of Object.entries(data)) {

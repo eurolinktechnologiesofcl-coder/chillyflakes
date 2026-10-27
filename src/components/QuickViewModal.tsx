@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   X, 
   Heart, 
@@ -6,11 +7,14 @@ import {
   Zap, 
   Star, 
   Truck, 
-  ShieldCheck 
+  ShieldCheck,
+  ExternalLink
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { formatRupees, FREE_SHIPPING_THRESHOLD } from '../utils/currency';
 
 export const QuickViewModal: React.FC = () => {
+  const navigate = useNavigate();
   const { 
     quickViewProduct, 
     setQuickViewProduct, 
@@ -21,7 +25,7 @@ export const QuickViewModal: React.FC = () => {
   } = useStore();
 
   const [selectedImg, setSelectedImg] = useState<string>('');
-  const [deliveryPincode, setDeliveryPincode] = useState('M5V 2T6');
+  const [deliveryPincode, setDeliveryPincode] = useState('682001');
 
   if (!quickViewProduct) return null;
 
@@ -151,12 +155,12 @@ export const QuickViewModal: React.FC = () => {
                 <div className="text-[11px] text-[#2E4D34] font-bold uppercase tracking-wider">Special Price</div>
                 <div className="flex items-baseline gap-3 mt-0.5">
                   <span className="text-2xl sm:text-3xl font-bold text-[#223B28]">
-                    CAD ${quickViewProduct.price.toFixed(2)}
+                    {formatRupees(quickViewProduct.price)}
                   </span>
                   {quickViewProduct.originalPrice > quickViewProduct.price && (
                     <>
                       <span className="text-sm line-through text-[#8F9E8F]">
-                        CAD ${quickViewProduct.originalPrice.toFixed(2)}
+                        {formatRupees(quickViewProduct.originalPrice)}
                       </span>
                       <span className="text-xs font-bold text-[#2E4D34]">
                         {quickViewProduct.discount}% off
@@ -198,7 +202,7 @@ export const QuickViewModal: React.FC = () => {
                     type="text"
                     value={deliveryPincode}
                     onChange={(e) => setDeliveryPincode(e.target.value)}
-                    placeholder="Enter Postal Code"
+                    placeholder="Enter PIN Code"
                     className="w-full text-xs px-3 py-2 border border-[#ECE7DD] rounded-xl focus:outline-none focus:border-[#2E4D34]"
                   />
                   <button className="px-4 py-2 bg-[#2E4D34] text-white text-xs font-medium rounded-xl hover:bg-[#233B27]">
@@ -206,8 +210,23 @@ export const QuickViewModal: React.FC = () => {
                   </button>
                 </div>
                 <p className="text-[11px] text-[#6C7B6D] mt-1.5">
-                  Delivery by <strong>Tomorrow, 5:00 PM</strong> | Free shipping on orders over CAD $35
+                  Delivery by <strong>Tomorrow, 5:00 PM</strong> | Free shipping on orders over {formatRupees(FREE_SHIPPING_THRESHOLD)}
                 </p>
+              </div>
+
+              {/* View Full Product Details Link */}
+              <div className="pt-2 border-t border-[#ECE7DD]">
+                <button
+                  onClick={() => {
+                    const id = quickViewProduct.id;
+                    setQuickViewProduct(null);
+                    navigate(`/products/${id}`);
+                  }}
+                  className="w-full py-2.5 px-4 bg-[#FAF7F2] hover:bg-[#EAF1EA] text-[#2E4D34] font-semibold text-xs rounded-xl border border-[#D5DDD0] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span>View Complete Details, Ingredients & Customer Reviews</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
               </div>
 
             </div>

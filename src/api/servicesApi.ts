@@ -19,8 +19,8 @@ export interface BookingResponse {
 }
 
 /**
- * Django Services API Service
- * Maps to Django endpoints:
+ * Services API Service
+ * Maps to backend endpoints:
  * - GET  /api/services/
  * - GET  /api/services/:id/
  * - POST /api/services/bookings/
@@ -50,7 +50,7 @@ export const servicesApi = {
   },
 
   /**
-   * Submit a service booking request to Django backend.
+   * Submit a service booking request to the backend.
    */
   async createBooking(booking: BookingRequest): Promise<ApiResponse<BookingResponse>> {
     const fallback: BookingResponse = {

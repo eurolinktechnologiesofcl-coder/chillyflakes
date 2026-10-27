@@ -64,7 +64,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
         <div
           role="listbox"
           aria-labelledby="language-switcher-button"
-          className="absolute right-0 mt-2 w-48 rounded-2xl bg-white shadow-xl border border-[#EAE5DB] py-1.5 z-50 text-[#223B28] animate-in fade-in zoom-in-95 duration-150"
+          className="absolute right-0 mt-2 w-48 rounded-2xl bg-white shadow-2xl border border-[#EAE5DB] py-1.5 z-[100] text-[#223B28] animate-in fade-in zoom-in-95 duration-150"
         >
           <div className="px-3 py-1.5 text-[10px] uppercase font-semibold text-[#637365] tracking-wider border-b border-[#F4EFE6]">
             Select Language
@@ -77,15 +77,17 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
                 role="option"
                 aria-selected={isSelected}
                 onClick={() => handleSelect(lang.code)}
-                className={`w-full flex items-center justify-between px-3.5 py-2 text-xs text-left transition-colors ${
+                className={`w-full flex items-center justify-between px-3.5 py-2 text-xs text-left transition-colors cursor-pointer ${
                   isSelected
                     ? 'bg-[#EAF1EA] text-[#2E4D34] font-semibold'
                     : 'text-[#223B28] hover:bg-[#FAF7F2]'
                 }`}
               >
                 <div className="flex flex-col">
-                  <span>{lang.nativeName}</span>
-                  <span className="text-[10px] text-[#637365] font-normal">{lang.name}</span>
+                  <span className="font-semibold text-xs">{lang.nativeName}</span>
+                  <span className="text-[10px] text-[#637365] font-normal">
+                    {lang.code === 'en' ? 'English' : lang.name}
+                  </span>
                 </div>
                 {isSelected && <Check className="w-3.5 h-3.5 text-[#2E4D34]" />}
               </button>

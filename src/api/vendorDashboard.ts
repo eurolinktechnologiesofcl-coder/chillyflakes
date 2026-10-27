@@ -3,7 +3,7 @@ import type {
   DashboardSummary,
   SalesChartResponse,
   SalesChartRange,
-  DrfPaginatedResponse,
+  PaginatedResponse,
   RecentOrder,
   LowStockItem,
   RecentReview,
@@ -34,8 +34,8 @@ export async function getSalesChart(range: SalesChartRange = '30'): Promise<Sale
 export async function getRecentOrders(
   page: number = 1,
   pageSize: number = 5
-): Promise<DrfPaginatedResponse<RecentOrder>> {
-  const response = await axiosClient.get<DrfPaginatedResponse<RecentOrder>>(
+): Promise<PaginatedResponse<RecentOrder>> {
+  const response = await axiosClient.get<PaginatedResponse<RecentOrder>>(
     '/api/v1/vendor/dashboard/recent-orders/',
     {
       params: { page, page_size: pageSize },
@@ -50,8 +50,8 @@ export async function getRecentOrders(
 export async function getLowStockItems(
   page: number = 1,
   pageSize: number = 5
-): Promise<DrfPaginatedResponse<LowStockItem>> {
-  const response = await axiosClient.get<DrfPaginatedResponse<LowStockItem>>(
+): Promise<PaginatedResponse<LowStockItem>> {
+  const response = await axiosClient.get<PaginatedResponse<LowStockItem>>(
     '/api/v1/vendor/dashboard/low-stock/',
     {
       params: { page, page_size: pageSize },
@@ -68,14 +68,14 @@ export async function getRecentReviews(
   page: number = 1,
   pageSize: number = 5,
   failParam?: string
-): Promise<DrfPaginatedResponse<RecentReview>> {
+): Promise<PaginatedResponse<RecentReview>> {
   let fail = failParam;
   if (!fail && typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search);
     fail = params.get('fail') || undefined;
   }
 
-  const response = await axiosClient.get<DrfPaginatedResponse<RecentReview>>(
+  const response = await axiosClient.get<PaginatedResponse<RecentReview>>(
     '/api/v1/vendor/dashboard/recent-reviews/',
     {
       params: { page, page_size: pageSize, ...(fail ? { fail } : {}) },

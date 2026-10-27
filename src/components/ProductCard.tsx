@@ -1,19 +1,27 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Heart, Star, ShoppingCart, Eye } from 'lucide-react';
 import type { Product } from '../types';
 import { useStore } from '../context/StoreContext';
+import { formatRupees } from '../utils/currency';
 
 interface ProductCardProps {
   product: Product;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+  const navigate = useNavigate();
   const { addToCart, toggleWishlist, isInWishlist, openProductPage } = useStore();
   const isWishlisted = isInWishlist(product.id);
 
+  const handleCardClick = () => {
+    openProductPage(product);
+    navigate(`/products/${product.id}`);
+  };
+
   return (
     <div 
-      onClick={() => openProductPage(product)}
+      onClick={handleCardClick}
       className="group bg-[#FFFDFD] text-[#1D251E] rounded-3xl border border-[#EDE3DE] hover:border-[#2D4F32]/50 hover:shadow-card-chilly transition-all duration-300 p-3.5 sm:p-4 flex flex-col justify-between relative cursor-pointer"
     >
       
@@ -43,7 +51,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            openProductPage(product);
+            handleCardClick();
           }}
           className="absolute bottom-2.5 right-2.5 p-2 rounded-full bg-white text-[#1D251E] hover:text-[#2D4F32] shadow-sm transition-all opacity-0 group-hover:opacity-100 z-10 hover:scale-105"
           title="View Details"
@@ -104,12 +112,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="pt-2.5 border-t border-[#F2E8E4]">
           <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-base sm:text-lg font-bold text-[#1D251E]">
-              ₹{product.price}
+              {formatRupees(product.price)}
             </span>
             {product.originalPrice > product.price && (
               <>
                 <span className="text-xs text-[#8A988D] line-through font-mono">
-                  ₹{product.originalPrice}
+                  {formatRupees(product.originalPrice)}
                 </span>
                 <span className="text-[11px] font-bold text-[#D82C20] bg-[#FDECEB] border border-[#FAC7C3] px-2 py-0.5 rounded-full">
                   {product.discount}% off

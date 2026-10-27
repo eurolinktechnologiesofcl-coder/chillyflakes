@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { heroApi, type HeroSlideData } from '../api';
 
 export const HeroSection: React.FC = () => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const [slides, setSlides] = useState<HeroSlideData[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const { setSelectedCategory } = useStore();
@@ -29,6 +33,12 @@ export const HeroSection: React.FC = () => {
     backgroundPosition: 'right 30% center',
   };
 
+  const slideSubtitle = t(`hero.slides.${slide.id}.subtitle`, slide.subtitle);
+  const slideTitleLine1 = t(`hero.slides.${slide.id}.titleLine1`, slide.titleLine1);
+  const slideTitleLine2 = t(`hero.slides.${slide.id}.titleLine2`, slide.titleLine2);
+  const slideDescription = t(`hero.slides.${slide.id}.description`, slide.description);
+  const slideButtonText = t(`hero.slides.${slide.id}.buttonText`, slide.buttonText);
+
   // Automatic infinite looping carousel (uninterrupted continuous loop every 5 seconds)
   useEffect(() => {
     if (slides.length <= 1) return;
@@ -50,15 +60,15 @@ export const HeroSection: React.FC = () => {
 
   const handleButtonClick = () => {
     if (slide.category === 'Services') {
-      const el = document.getElementById('services-section');
-      if (el) el.scrollIntoView({ behavior: 'smooth' });
+      navigate('/services');
       return;
     }
     if (slide.category && slide.category !== 'All') {
       setSelectedCategory(slide.category);
+      navigate(`/shop?category=${encodeURIComponent(slide.category)}`);
+      return;
     }
-    const el = document.getElementById('featured-products-section');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    navigate('/shop');
   };
 
   return (
@@ -86,7 +96,7 @@ export const HeroSection: React.FC = () => {
           
           {/* Small tracked uppercase subtitle */}
           <div className="text-[10px] sm:text-[11px] font-semibold tracking-[0.22em] text-[#63725F] uppercase transition-all duration-500">
-            {slide.subtitle}
+            {slideSubtitle}
           </div>
 
           {/* 
@@ -96,16 +106,16 @@ export const HeroSection: React.FC = () => {
           */}
           <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-[52px] font-bold leading-[1.14] tracking-tight transition-all duration-500">
             <span className="text-[#203D26] block">
-              {slide.titleLine1}
+              {slideTitleLine1}
             </span>
             <span className="text-[#7B3F1B] block mt-1">
-              {slide.titleLine2}
+              {slideTitleLine2}
             </span>
           </h1>
 
           {/* Descriptive text */}
           <p className="text-xs sm:text-sm md:text-[14px] text-[#4F5B4E] leading-relaxed max-w-md font-normal transition-all duration-500">
-            {slide.description}
+            {slideDescription}
           </p>
 
           {/* Pill Button: Deep forest green with right arrow */}
@@ -114,7 +124,7 @@ export const HeroSection: React.FC = () => {
               onClick={handleButtonClick}
               className="inline-flex items-center gap-2.5 px-7 py-3 bg-[#2D4F32] hover:bg-[#223E27] text-white text-xs sm:text-sm font-medium rounded-full shadow-xs hover:shadow-md transition-all duration-300 group active:scale-98 cursor-pointer"
             >
-              <span>{slide.buttonText}</span>
+              <span>{slideButtonText}</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>

@@ -10,11 +10,56 @@
     "homeLiving": "Home & Living",
     "retailProducts": "Retail Products",
     "services": "Services",
-    "books": "Books"
+    "books": "Books",
+    "shopByCategory": "Shop by Category"
   },
   "nav": {
+    "home": "Home",
+    "shop": "Shop",
+    "services": "Services",
+    "about": "About Us",
+    "contact": "Contact",
+    "allCategories": "All Categories →",
+    "browseAllServices": "Browse All Services →",
+    "searchPlaceholder": "Search products, spices, handicrafts...",
+    "wishlist": "My Wishlist",
+    "account": "My Orders & Account",
+    "whyChoose": "Why Choose Us",
     "backToStore": "Back to Marketplace",
-    "becomeSeller": "Become a Seller"
+    "becomeSeller": "Become a Seller",
+    "signIn": "Sign In",
+    "searchMobile": "Search products..."
+  },
+  "announcement": {
+    "tagline": "Support Handmade • Choose Natural • Direct From Artisans",
+    "taglineMobile": "Handmade • Natural • Direct Selling",
+    "login": "Login",
+    "register": "Register",
+    "becomeSeller": "Become a Seller",
+    "hello": "Hello"
+  },
+  "home": {
+    "whyChooseTitle": "Why Choose ChillyFlakes?",
+    "trust1": "100% Natural\n& Handmade",
+    "trust2": "Support Local\nSmall Businesses",
+    "trust3": "Secure Payments\n& Safe Checkout",
+    "trust4": "Fast & Reliable\nShipping",
+    "trust5": "Eco-Friendly\n& Sustainable",
+    "featuredTitle": "Featured Products",
+    "featuredSubtitle": "Handpicked treasures from our local artisans",
+    "servicesTitle": "Community Services",
+    "servicesSubtitle": "Experienced local experts offering authentic wellness and everyday assistance",
+    "addToCart": "Add to Cart",
+    "outOfStock": "Out of Stock",
+    "viewDetails": "View Details",
+    "sale": "Sale",
+    "bookAppointment": "Book Appointment",
+    "viewAll": "View All",
+    "trendingTitle": "Trending Handcrafted Finds",
+    "trendingSubtitle": "Today's artisan spotlight • Handcrafted discoveries from local makers",
+    "showingItemsIn": "Showing items in",
+    "inStock": "In Stock",
+    "quickView": "Quick View"
   },
   "auth": {
     "sellerRegistration": "Seller Registration"
@@ -436,9 +481,481 @@
     "needHelp": "Need assistance? Email sellers@chillyflakes.in"
   },
   "footer": {
-    "rights": "© 2026 ChillyFlakes Marketplace. Empowering Indian Artisans & Creators.",
+    "tagline": "ChillyFlakes connects conscious shoppers with talented local artisans, offering handcrafted essentials, natural self-care, and skilled community services.",
+    "quickLinks": "Quick Links",
+    "customerCare": "Customer Care",
+    "stayConnected": "Stay Connected",
+    "home": "Home",
+    "shopCatalog": "Shop Catalog",
+    "ourServices": "Our Services",
+    "aboutUs": "About Us",
+    "contactUs": "Contact Us",
+    "myWishlist": "My Wishlist",
+    "myAccount": "My Account",
+    "trackOrder": "Track My Order",
+    "serviceAppointments": "Service Appointments",
+    "deliveryAddresses": "Delivery Addresses",
+    "artisanSelling": "Artisan Direct Selling",
+    "privacyPolicy": "Privacy Policy",
+    "termsConditions": "Terms & Conditions",
+    "rights": "© 2026 ChillyFlakes. All rights reserved.",
+    "shopNatural": "Shop Natural",
+    "shopHandmade": "Shop Handmade",
+    "makeDifference": "Make a Difference",
+    "language": "Language",
     "terms": "Terms of Service",
     "privacy": "Privacy Policy",
     "help": "Seller Support"
+  },
+  "about": {
+    "badge": "Heritage • Artisans • Conscious Living",
+    "heroTitle": "ChillyFlakes: Connecting You Directly to India’s Master Artisans & Village Makers",
+    "heroSubtitle": "ChillyFlakes is just our brand name — behind it is a living collective of rural weavers, clay potters, spice growers, and skilled community practitioners across India, selling authentic goods directly to your home with zero exploitative middlemen.",
+    "availableIn": "Available in your mother tongue:",
+    "ourMission": "Our Mission & Philosophy",
+    "missionHeading": "Preserving Ancestral Crafts & Empowering Independent Creators",
+    "missionP1": "In an era dominated by mass-manufactured plastics and synthetic fragrances, ChillyFlakes was created to honor the timeless heritage of Indian handcrafted artistry. We travel directly into village clusters across Kerala, Tamil Nadu, Karnataka, Rajasthan, West Bengal, and Kashmir to meet the individuals who shape clay, spin handloom khadi, distill cold-pressed oils, and harvest organic spices.",
+    "missionP2": "When you buy from ChillyFlakes, you are not buying from an anonymous factory. You are directly supporting the artisan's household, keeping indigenous techniques alive, and receiving authentic goods certified for natural purity.",
+    "trust": {
+      "directTitle": "Direct Artisan Contact",
+      "directDesc": "No multi-tier wholesale agents or markups.",
+      "authTitle": "100% Verified Authenticity",
+      "authDesc": "Strict verification of raw ingredients & craftsmanship.",
+      "ecoTitle": "Eco-Minded Packing",
+      "ecoDesc": "Sturdy recycled corrugate, zero unnecessary single-use plastics.",
+      "wageTitle": "Fair Living Wage",
+      "wageDesc": "Artisans set their own prices and receive weekly bank payouts."
+    },
+    "imageQuote": "Every piece carries the fingerprint of its maker.",
+    "imageQuoteSub": "Handcrafted with care across 14+ Indian states",
+    "categoriesEyebrow": "Our 6 Craft & Product Department Layers",
+    "categoriesTitle": "Handcrafted Marketplace Categories",
+    "exploreAllCategories": "Explore All Marketplace Products",
+    "primaryStateClusters": "Primary State Clusters:",
+    "browse": "Browse",
+    "servicesEyebrow": "Local Empowerment Beyond Physical Products",
+    "servicesTitle": "Professional Community Services",
+    "browseAllServices": "Browse All Services & Book Online",
+    "bookAppointment": "Book Appointment / Inquire →",
+    "clustersEyebrow": "Pan-India Craft Clusters",
+    "clustersTitle": "Where Our Crafts Come From",
+    "clustersSubtitle": "We partner directly with craft guilds, self-help groups, and generational master artisans across India.",
+    "states": {
+      "kerala": {
+        "name": "Kerala",
+        "crafts": "Aranmula Metal Mirror, Nilambur Teak, Bell Metal Nilavilakku, Idukki Cardamom"
+      },
+      "tamilNadu": {
+        "name": "Tamil Nadu",
+        "crafts": "Kanchipuram Silk Handlooms, Thanjavur Art Plates, Terracotta Temple Figurines"
+      },
+      "karnataka": {
+        "name": "Karnataka",
+        "crafts": "Channapatna Lacquer Toys, Mysore Sandalwood Soaps, Coorg Single-Estate Coffee"
+      },
+      "rajasthan": {
+        "name": "Rajasthan",
+        "crafts": "Jaipur Blue Pottery, Sanganer Hand Block Printing, Hand-Cut Silver Moonstones"
+      },
+      "westBengal": {
+        "name": "West Bengal",
+        "crafts": "Dokra Lost-Wax Bell Metal, Kantha Thread Embroidery, Sholapith Eco-Art"
+      },
+      "kashmir": {
+        "name": "Kashmir & North",
+        "crafts": "Pashmina Wool Shawls, Walnut Wood Hand Carvings, Pampore Kashmiri Saffron"
+      }
+    },
+    "cta": {
+      "title": "Are You an Artisan, Cultivator or Service Professional?",
+      "subtitle": "Sell your handmade creations directly to conscious buyers across India, manage orders easily, and enjoy fast weekly bank deposits.",
+      "becomeSeller": "Become a Seller / Artisan",
+      "contactUs": "Contact Our Artisan Desk"
+    },
+    "categories": {
+      "natural": {
+        "name": "Natural Products",
+        "desc": "Single-estate cold-pressed botanical oils, wild harvested Western Ghats honey, chemical-free face elixirs, and raw Ayurvedic herbs.",
+        "origins": "Kerala, Uttarakhand, Himachal Pradesh",
+        "itemCount": "120+ Products"
+      },
+      "handmade": {
+        "name": "Handmade Products",
+        "desc": "Traditional wheel-thrown terracotta pottery, hand-carved rosewood, natural soy aromatherapy candles, and hand-knotted macrame decor.",
+        "origins": "Rajasthan, West Bengal, Karnataka",
+        "itemCount": "240+ Products"
+      },
+      "jewelry": {
+        "name": "Jewelry",
+        "desc": "Pure 925 sterling silver filigree, natural rainbow moonstones, terracotta hand-painted earrings, and authentic temple jewelry.",
+        "origins": "Odisha, Rajasthan, Tamil Nadu",
+        "itemCount": "85+ Products"
+      },
+      "clothes": {
+        "name": "Clothes & Fashion",
+        "desc": "Handloom Kasavu cotton, breathable pure linen shirts, natural vegetable-dyed stoles, and hand-embroidered Kantha apparel.",
+        "origins": "Kerala, West Bengal, Gujarat",
+        "itemCount": "110+ Products"
+      },
+      "home": {
+        "name": "Home & Living",
+        "desc": "Solid brass Kerala Nilavilakku lamps, braided water-hyacinth floor mats, ceramic stoneware mugs, and eco-friendly teak cutting boards.",
+        "origins": "Kerala, Tamil Nadu, Uttar Pradesh",
+        "itemCount": "150+ Products"
+      },
+      "retail": {
+        "name": "Retail Products",
+        "desc": "Export-grade Idukki green cardamom pods, Malabar Tellicherry black peppercorns, organic jaggery crystals, and artisan plantation coffee.",
+        "origins": "Kerala (Idukki & Wayanad), Coorg",
+        "itemCount": "65+ Products"
+      }
+    },
+    "services": {
+      "massage": {
+        "title": "Massage Therapy",
+        "sub": "Traditional Ayurvedic Abhyanga & Therapeutic Wellness",
+        "desc": "Certified local Ayurvedic therapists delivering authentic herbal oil body treatments, pain relief sessions, and rejuvenating wellness therapies right to your doorstep or at verified artisan studios.",
+        "badge": "Certified Practitioners"
+      },
+      "beauty": {
+        "title": "Beauty & Skincare",
+        "sub": "100% Herbal & Botanical Facial Care",
+        "desc": "Personalized bridal and daily self-care treatments prepared fresh with turmeric, sandalwood, raw honey, and rose water by seasoned village beauticians and herbalists.",
+        "badge": "Zero Chemicals"
+      },
+      "tutoring": {
+        "title": "Tutoring",
+        "sub": "Regional Indian Languages & Traditional Crafts",
+        "desc": "Passionate community tutors teaching Malayalam, Tamil, Hindi, and Kannada, as well as hands-on masterclasses in pottery, embroidery, and classical Carnatic arts.",
+        "badge": "Native Language Experts"
+      },
+      "cleaning": {
+        "title": "Home Cleaning",
+        "sub": "Eco-Friendly, Non-Toxic Deep Sanitization",
+        "desc": "Trained neighborhood professionals utilizing plant-derived bio-enzymes, vinegar, and steam to deep clean your living spaces without synthetic fragrances or caustic chemicals.",
+        "badge": "Child & Pet Safe"
+      }
+    }
+  },
+  "contact": {
+    "badge": "We’re Here to Help • Direct Support",
+    "title": "Contact ChillyFlakes",
+    "subtitle": "Have questions about a handcrafted order, artisan direct-selling partnerships, or community service bookings? Reach out to our team in your preferred regional language.",
+    "speakIn": "Speak to us in your language:",
+    "cards": {
+      "call": {
+        "title": "Call Us Directly",
+        "sub": "Toll-free customer & artisan helpline"
+      },
+      "email": {
+        "title": "Email Inquiries",
+        "sub": "Prompt response within 4 business hours"
+      },
+      "whatsapp": {
+        "title": "WhatsApp Support",
+        "sub": "Instant chat for tracking & inquiries",
+        "btn": "Chat on WhatsApp →"
+      },
+      "hours": {
+        "title": "Operating Hours",
+        "sub": "Monday to Saturday",
+        "time": "9:00 AM – 7:00 PM IST",
+        "sunday": "Sunday: Artisan Village Fieldwork"
+      }
+    },
+    "form": {
+      "title": "Send Us a Message",
+      "sub": "Fill out the form below and an artisan coordinator will respond shortly.",
+      "fullName": "Your Full Name",
+      "fullNamePlaceholder": "e.g. Priya Nair",
+      "email": "Email Address",
+      "emailPlaceholder": "e.g. priya@example.com",
+      "phone": "Mobile Number",
+      "phonePlaceholder": "e.g. +91 98765 43210",
+      "state": "State / Union Territory",
+      "inquiryType": "What is this inquiry about?",
+      "inquiryOptions": {
+        "support": "Customer Support (Order Status, Delivery, Returns)",
+        "artisan": "Artisan / Craftsman Direct Selling (I make handmade crafts)",
+        "service": "Community Service Provider (Massage, Beauty, Tutoring, Cleaning)",
+        "bulk": "Bulk / Wholesale Orders & Corporate Gifting",
+        "general": "General Marketplace Inquiry"
+      },
+      "category": "Relevant Category",
+      "categoryOptions": {
+        "natural": "Natural Products (Spices, Botanicals, Oils)",
+        "handmade": "Handmade Products (Pottery, Wood, Decor)",
+        "jewelry": "Jewelry (Silver, Gemstones, Terracotta)",
+        "clothes": "Clothes & Fashion (Handlooms, Khadi, Linen)",
+        "home": "Home & Living (Brass, Cookware, Rugs)",
+        "retail": "Retail Products (Packaged Spices, Coffee)",
+        "massage": "Service: Massage Therapy",
+        "beauty": "Service: Beauty & Skincare",
+        "tutoring": "Service: Regional Languages & Tutoring",
+        "cleaning": "Service: Eco-Friendly Home Cleaning"
+      },
+      "prefLang": "Preferred Language for Reply",
+      "message": "Your Message",
+      "messagePlaceholder": "Tell us more about your inquiry, handmade craft products, order details, or questions...",
+      "submit": "Submit Inquiry",
+      "submitting": "Sending Message...",
+      "validationError": "Please fill in your name, email, and message.",
+      "toastSuccess": "Inquiry received! Ticket reference: {{ticketId}}",
+      "successTitle": "Thank You for Reaching Out!",
+      "successDesc": "Your message has been assigned to our regional coordinator. We will get in touch with you at {{email}} in your preferred language.",
+      "ticketRef": "Ticket Reference:",
+      "reset": "Submit Another Inquiry"
+    },
+    "hubs": {
+      "title": "Our Heritage Hubs & Sourcing Centers",
+      "hub1Name": "Bengaluru Technology & Logistics Hub",
+      "hub1Addr": "#48, 100ft Road, Indiranagar, Bengaluru, Karnataka 560038",
+      "hub1Desc": "Handling nationwide artisan supply-chain & Karnataka craft outreach.",
+      "hub2Name": "Kochi Artisan Experience & Sourcing Center",
+      "hub2Addr": "Heritage Compound, Calvathy Road, Fort Kochi, Kerala 682001",
+      "hub2Desc": "Direct coordinator for spices, coir, bell metal & Kerala handlooms.",
+      "visitingTitle": "Artisan Visiting Hours",
+      "visitingDesc": "Artisans and small-scale cultivators wishing to showcase samples are welcome on Tuesdays & Thursdays with prior appointment."
+    },
+    "cta": {
+      "title": "Are You an Indian Artisan?",
+      "desc": "Skip retail middlemen. Open your digital storefront on ChillyFlakes in minutes and get listed in our natural & handmade marketplace.",
+      "button": "Register as an Artisan →"
+    },
+    "faq": {
+      "eyebrow": "Got Questions?",
+      "title": "Frequently Asked Questions",
+      "subtitle": "Learn more about our authentic handmade sourcing, community services, and artisan direct-selling.",
+      "q1": "How does ChillyFlakes verify that products are truly handmade and natural?",
+      "a1": "Every artisan partner on ChillyFlakes undergoes rigorous onboarding verification. We review artisan cards, geographical origin documents, batch purity tests, and photograph authentic production setups. No chemical fillers, toxic foaming agents, or artificial preservatives are permitted.",
+      "q2": "I am a rural artisan or self-help group. How do I start selling?",
+      "a2": "We welcome master craftspeople, handloom weavers, and organic cultivators from all Indian states. Click \"Become a Seller\" in our header or select \"Artisan / Craftsman Direct Selling\" on this form. Our regional coordinator will guide you through digital onboarding and zero-upfront-cost store setup.",
+      "q3": "How do community service appointments work (e.g. Massage, Tutoring)?",
+      "a3": "You can browse verified local practitioners under our Services tab, select a convenient date and time, and submit your request. The service provider will confirm the appointment directly with you via phone/WhatsApp.",
+      "q4": "What are your delivery timelines for domestic and interstate orders?",
+      "a4": "Handmade items are lovingly prepared and packed by the artisan within 24–48 hours. Standard courier delivery takes 3–5 business days across major Indian cities, and 4–7 days for remote destinations.",
+      "q5": "Do you offer bulk corporate gifts, custom wedding favors, or export orders?",
+      "a5": "Yes! We frequently organize bespoke artisan gift boxes (spice hampers, handmade soaps, brass lamps, and handloom shawls) for festive occasions, weddings, and eco-conscious businesses. Choose \"Bulk / Wholesale & Corporate Gifting\" in the form below."
+    }
+  },
+  "services": {
+    "breadcrumb": "Community Services",
+    "verifiedBadge": "Verified Local Practitioners",
+    "title": "Professional Community Services",
+    "subtitle": "From organic botanical facials and deep-tissue massage to chemical-free eco-cleaning and academic tutoring — vetted experts at your doorstep.",
+    "searchPlaceholder": "Search services...",
+    "bookNow": "Book Now",
+    "homeTitle": "Services",
+    "homeSubtitle": "Skilled professionals, at your service",
+    "homeDesc": "From wellness to personal care, find trusted service providers in your community.",
+    "badgeVerified": "Verified & Vetted Community Experts",
+    "badgePricing": "100% Transparent Pricing",
+    "browseServices": "Browse Services",
+    "viewAll": "View All Services",
+    "allTitle": "All Community Services",
+    "availableCount": "{{count}} Available",
+    "allSubtitle": "Connect with certified local practitioners, artisans, and verified community experts.",
+    "categories": {
+      "all": "All Services",
+      "wellness": "Wellness & Massage",
+      "home": "Eco Home & Living",
+      "crafts": "Artisan Workshops",
+      "education": "Tutoring & Skills"
+    },
+    "tags": {
+      "Wellness": "Wellness",
+      "Home": "Home",
+      "Crafts": "Crafts",
+      "Education": "Education"
+    },
+    "modal": {
+      "title": "Book an Appointment:",
+      "namePlaceholder": "Your Full Name",
+      "contactPlaceholder": "Phone or Email",
+      "slotMorning": "Morning (09:00 AM - 12:00 PM)",
+      "slotAfternoon": "Afternoon (12:00 PM - 03:00 PM)",
+      "slotEvening": "Evening (03:00 PM - 06:00 PM)",
+      "slotWeekend": "Weekend Special Slot",
+      "confirmBtn": "Confirm Appointment Request",
+      "submitting": "Requesting...",
+      "successMsg": "Your booking request has been submitted! View it in My Account.",
+      "errorMsg": "Could not schedule appointment. Please try again."
+    },
+    "items": {
+      "srv-massage": {
+        "title": "Massage Therapy",
+        "subtitle": "Relax & Rejuvenate",
+        "description": "Therapeutic deep-tissue and Swedish massage with cold-pressed botanical essential oils. Relieves muscle tension and restores full-body tranquility.",
+        "duration": "60 - 90 mins",
+        "price": "From ₹1,499"
+      },
+      "srv-beauty": {
+        "title": "Beauty & Skincare",
+        "subtitle": "Look & Feel Your Best",
+        "description": "Organic botanical facials, all-natural micro-exfoliation, and custom herbal masks formulated for sensitive and dry skin types.",
+        "duration": "45 - 60 mins",
+        "price": "From ₹999"
+      },
+      "srv-tutoring": {
+        "title": "Tutoring",
+        "subtitle": "Learn & Grow",
+        "description": "Personalized 1-on-1 and small group academic tutoring in STEM, languages, and creative writing led by certified educators.",
+        "duration": "60 mins per session",
+        "price": "From ₹499 / hr"
+      },
+      "srv-cleaning": {
+        "title": "Home Cleaning",
+        "subtitle": "A Cleaner, Healthier Home",
+        "description": "Eco-friendly, chemical-free home sanitation using natural plant-derived cleaners. Safe for children, pets, and the planet.",
+        "duration": "2 - 4 hours",
+        "price": "From ₹1,999"
+      },
+      "srv-pottery": {
+        "title": "Pottery Workshop",
+        "subtitle": "Craft & Create",
+        "description": "Hands-on wheel-throwing and ceramic sculpture classes guided by resident clay artisans. All materials, firing, and glazing included.",
+        "duration": "2 hours",
+        "price": "From ₹1,299"
+      },
+      "srv-yoga": {
+        "title": "Yoga & Mindfulness",
+        "subtitle": "Mind, Body & Spirit",
+        "description": "Restorative Hatha & Vinyasa flow sessions combined with guided breathwork and sound healing for mental clarity and inner balance.",
+        "duration": "60 - 75 mins",
+        "price": "From ₹499"
+      },
+      "srv-plant-styling": {
+        "title": "Plant Care & Styling",
+        "subtitle": "Living Green Spaces",
+        "description": "Custom botanical interior consultation, organic repotting, pest diagnosis, and seasonal greenery curation for homes and offices.",
+        "duration": "90 mins",
+        "price": "From ₹799"
+      },
+      "srv-wood-restoration": {
+        "title": "Wood Restoration",
+        "subtitle": "Revitalize & Preserve",
+        "description": "Expert repair and rejuvenation of antique teak, oak, and rosewood furniture with natural shellac and beeswax finishes.",
+        "duration": "Consultation & Service",
+        "price": "From ₹1,799"
+      },
+      "srv-candle-making": {
+        "title": "Candle & Scent Making",
+        "subtitle": "Aromatherapy Crafts",
+        "description": "Blend your own signature botanical soy candle with pure therapeutic essential oils, wood wicks, and reusable amber vessels.",
+        "duration": "90 mins",
+        "price": "From ₹899"
+      },
+      "srv-fitness": {
+        "title": "Movement & Wellness Coaching",
+        "subtitle": "Holistic Strength",
+        "description": "One-on-one tailored mobility, functional strength training, and gentle posture correction for everyday vitality.",
+        "duration": "60 mins",
+        "price": "From ₹999"
+      },
+      "srv-photography": {
+        "title": "Lifestyle & Portrait Photography",
+        "subtitle": "Cherished Memories",
+        "description": "Natural light portraiture, artisan brand storytelling, and family celebration photo sessions captured with warm earthy aesthetics.",
+        "duration": "90 - 120 mins",
+        "price": "From ₹2,999"
+      },
+      "srv-tailoring": {
+        "title": "Eco Tailoring & Alterations",
+        "subtitle": "Sustainable Wardrobe",
+        "description": "Mending, resizing, and custom repairs of heirloom linen, cotton, and wool garments to extend your wardrobe lifecycle sustainably.",
+        "duration": "2 - 3 days turnaround",
+        "price": "From ₹299"
+      }
+    }
+  },
+  "shop": {
+    "catalog": "Catalog",
+    "marketplace": "Handcrafted Marketplace",
+    "tagline": "Explore 100% natural, artisanal products sourced directly from Indian farmers and master craftspeople.",
+    "searchPlaceholder": "Search catalog...",
+    "filters": "Filters",
+    "resetAll": "Reset All",
+    "categories": "Categories",
+    "allCategories": "All Categories",
+    "priceRange": "Price Range",
+    "allPrices": "All Prices",
+    "under500": "Under ₹500",
+    "from500to1000": "₹500 - ₹1,000",
+    "from1000to2000": "₹1,000 - ₹2,000",
+    "above2000": "Above ₹2,000",
+    "minRating": "Minimum Rating",
+    "anyRating": "Any Rating",
+    "starsAndAbove": "★ & above",
+    "availability": "Availability",
+    "inStockOnly": "In Stock Only",
+    "sortBy": "Sort By",
+    "sortFeatured": "Featured",
+    "sortPriceLow": "Price: Low to High",
+    "sortPriceHigh": "Price: High to Low",
+    "sortRating": "Highest Rated",
+    "sortDiscount": "Biggest Discount",
+    "showingCount": "Showing {{count}} products",
+    "noProducts": "No products match your criteria.",
+    "clearFilters": "Clear Filters",
+    "inStock": "In Stock",
+    "quickView": "Quick View"
+  },
+  "hero": {
+    "subtitle": "WELCOME TO CHILLYFLAKES",
+    "titleLine1": "Natural Products",
+    "titleLine2": "Handmade with Love",
+    "desc": "Discover unique, eco-friendly products and handcrafted finds.",
+    "shopNow": "Shop Now",
+    "slides": {
+      "slide-1": {
+        "subtitle": "WELCOME TO CHILLYFLAKES",
+        "titleLine1": "Natural Products",
+        "titleLine2": "Handmade with Love",
+        "description": "Discover unique, eco-friendly products, beautiful jewelry, fashionable clothes, home décor and professional services — all from talented local sellers.",
+        "buttonText": "Shop Now"
+      },
+      "slide-2": {
+        "subtitle": "BAMBOO HOME DÉCOR & HANDICRAFTS",
+        "titleLine1": "Artisan Bamboo",
+        "titleLine2": "Handcrafted Living",
+        "description": "Hand-woven bamboo baskets, warm woven lanterns, and mindful earthen handicrafts crafted by skilled local artisans to bring organic warmth to your home.",
+        "buttonText": "Explore Handicrafts"
+      },
+      "slide-3": {
+        "subtitle": "PURE BOTANICAL CARE",
+        "titleLine1": "Organic Self-Care",
+        "titleLine2": "Pure Botanical Touch",
+        "description": "Cold-pressed botanical oils, lavender artisanal soaps, and pure soy candles blended with zero toxic additives.",
+        "buttonText": "Discover Wellness"
+      },
+      "slide-4": {
+        "subtitle": "EXPLORE YOUR PASSION",
+        "titleLine1": "Learn. Create.",
+        "titleLine2": "Stay Inspired.",
+        "description": "Discover a wide range of services and activities that enrich your skills, hobbies and lifestyle — from music and art to wellness and tutoring.",
+        "buttonText": "Explore Services"
+      }
+    }
+  },
+  "cart": {
+    "myCart": "My Cart ({{count}})",
+    "deliverTo": "Deliver to:",
+    "change": "Change",
+    "emptyTitle": "Your cart is empty!",
+    "emptyDesc": "Explore our curated handmade collection and add items to your cart.",
+    "shopNow": "Shop Now",
+    "remove": "Remove",
+    "couponPlaceholder": "Enter Coupon: CHILLY10",
+    "apply": "Apply",
+    "applied": "Applied",
+    "subtotal": "Subtotal",
+    "couponDiscount": "Coupon Discount (10%)",
+    "shipping": "Shipping",
+    "free": "FREE",
+    "totalAmount": "Total Amount",
+    "proceedToCheckout": "Proceed to Checkout",
+    "orderSuccessTitle": "Order Placed Successfully!",
+    "orderSuccessDesc": "Your handcrafted goods are being lovingly packed by our local artisans. Estimated delivery: 2-3 business days.",
+    "continueShopping": "Continue Shopping"
   }
 }

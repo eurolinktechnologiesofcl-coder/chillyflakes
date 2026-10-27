@@ -62,13 +62,13 @@ const defaultSlides: HeroSlideData[] = [
 ];
 
 /**
- * Django Hero Banner API Service
- * Maps to Django endpoint:
+ * Hero Banner API Service
+ * Maps to backend endpoint:
  * - GET /api/hero-slides/
  */
 export const heroApi = {
   /**
-   * Fetch active hero banner slides from Django CMS/Database.
+   * Fetch active hero banner slides from the backend CMS/database.
    */
   async getHeroSlides(): Promise<ApiResponse<HeroSlideData[]>> {
     return apiClient.get<HeroSlideData[]>('hero-slides/', defaultSlides);

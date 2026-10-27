@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   X, 
   Plus, 
@@ -6,12 +7,16 @@ import {
   ShoppingCart, 
   CheckCircle2,
   MapPin,
-  Tag
+  Tag,
+  Lock
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { ordersApi } from '../api';
+import { formatRupees, FREE_SHIPPING_THRESHOLD, DELIVERY_CHARGE } from '../utils/currency';
 
 export const CartDrawer: React.FC = () => {
+  const { t } = useTranslation();
   const { 
     isCartOpen, 
     setIsCartOpen, 
@@ -19,22 +24,21 @@ export const CartDrawer: React.FC = () => {
     updateQuantity, 
     removeFromCart, 
     cartTotal,
-    clearCart,
     showToast,
-    openProductPage,
-    user
+    openProductPage
   } = useStore();
+
+  const navigate = useNavigate();
 
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
   const [discountPercent, setDiscountPercent] = useState(0);
-  const [postalCode, setPostalCode] = useState('M5V 2T6');
-  const [isOrdering, setIsOrdering] = useState(false);
+  const [postalCode, setPostalCode] = useState('682001');
   const [orderDone, setOrderDone] = useState(false);
-  const [createdOrderRef, setCreatedOrderRef] = useState<string>('');
+  const [createdOrderRef] = useState<string>('');
 
   const discountAmount = promoApplied ? (cartTotal * discountPercent) / 100 : 0;
-  const deliveryCharge = cartTotal >= 35 || cartTotal === 0 ? 0 : 5;
+  const deliveryCharge = cartTotal >= FREE_SHIPPING_THRESHOLD || cartTotal === 0 ? 0 : DELIVERY_CHARGE;
   const finalPayable = Math.max(0, cartTotal - discountAmount + deliveryCharge);
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
@@ -57,39 +61,6 @@ export const CartDrawer: React.FC = () => {
     }
   };
 
-  const handlePlaceOrder = async () => {
-    if (cart.length === 0) return;
-    setIsOrdering(true);
-
-    try {
-      const orderPayload = {
-        items: cart.map((c) => ({
-          productId: c.product.id,
-          name: c.product.name,
-          price: c.product.price,
-          quantity: c.quantity,
-        })),
-        totalAmount: finalPayable,
-        deliveryCharge,
-        discountAmount,
-        postalCode,
-        customerName: user?.name,
-        customerEmail: user?.email,
-        customerPhone: user?.phone,
-      };
-
-      const res = await ordersApi.createOrder(orderPayload);
-      setCreatedOrderRef(res.data?.orderNumber || `CF-${Math.floor(100000 + Math.random() * 900000)}`);
-      setOrderDone(true);
-      clearCart();
-      showToast('Order Placed Successfully! Confirmation sent.', 'success');
-    } catch {
-      showToast('Order creation error. Please try again.', 'warning');
-    } finally {
-      setIsOrdering(false);
-    }
-  };
-
   if (!isCartOpen) return null;
 
   return (
@@ -108,7 +79,7 @@ export const CartDrawer: React.FC = () => {
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5 text-[#2E4D34]" />
               <h2 className="font-serif font-bold text-base tracking-wide">
-                My Cart ({cart.reduce((s, i) => s + i.quantity, 0)})
+                {t('cart.myCart', { count: cart.reduce((s, i) => s + i.quantity, 0), defaultValue: `My Cart (${cart.reduce((s, i) => s + i.quantity, 0)})` })}
               </h2>
             </div>
             <button
@@ -123,16 +94,16 @@ export const CartDrawer: React.FC = () => {
           <div className="bg-[#FAF7F2] px-5 py-2.5 border-b border-[#ECE7DD] flex items-center justify-between text-xs">
             <div className="flex items-center gap-1.5 text-[#223B28]">
               <MapPin className="w-3.5 h-3.5 text-[#2E4D34]" />
-              <span>Deliver to: <strong className="font-semibold text-[#223B28]">{postalCode}</strong></span>
+              <span>{t('cart.deliverTo', 'Deliver to:')} <strong className="font-semibold text-[#223B28]">{postalCode}</strong></span>
             </div>
             <button 
               onClick={() => {
-                const newCode = prompt("Enter postal code:", postalCode);
+                const newCode = prompt("Enter PIN code:", postalCode);
                 if (newCode) setPostalCode(newCode.trim());
               }}
               className="px-3 py-1 text-[#2E4D34] bg-white border border-[#D1DDD0] rounded-full font-semibold hover:bg-[#EAF1EA] transition-colors"
             >
-              Change
+              {t('cart.change', 'Change')}
             </button>
           </div>
 
@@ -144,7 +115,7 @@ export const CartDrawer: React.FC = () => {
                   <CheckCircle2 className="w-10 h-10" />
                 </div>
                 <h3 className="font-serif font-bold text-xl text-[#223B28]">
-                  Order Placed Successfully!
+                  {t('cart.orderSuccessTitle', 'Order Placed Successfully!')}
                 </h3>
                 {createdOrderRef && (
                   <div className="inline-block px-3 py-1 bg-white border border-[#D5DDD0] text-xs font-mono text-[#2E4D34] rounded-full">
@@ -152,13 +123,13 @@ export const CartDrawer: React.FC = () => {
                   </div>
                 )}
                 <p className="text-xs text-[#506052] leading-relaxed max-w-xs mx-auto font-normal">
-                  Your handcrafted goods are being lovingly packed by our local artisans. Estimated delivery: 2-3 business days.
+                  {t('cart.orderSuccessDesc', 'Your handcrafted goods are being lovingly packed by our local artisans. Estimated delivery: 2-3 business days.')}
                 </p>
                 <button
                   onClick={() => { setOrderDone(false); setIsCartOpen(false); }}
                   className="px-6 py-2.5 bg-[#2E4D34] hover:bg-[#233B27] text-white text-xs font-semibold rounded-full shadow-xs uppercase tracking-wider transition-colors"
                 >
-                  Continue Shopping
+                  {t('cart.continueShopping', 'Continue Shopping')}
                 </button>
               </div>
             ) : cart.length === 0 ? (
@@ -167,16 +138,16 @@ export const CartDrawer: React.FC = () => {
                   🌿
                 </div>
                 <h3 className="font-serif font-bold text-base text-[#223B28]">
-                  Your cart is empty!
+                  {t('cart.emptyTitle', 'Your cart is empty!')}
                 </h3>
                 <p className="text-xs text-[#506052]">
-                  Explore our curated handmade collection and add items to your cart.
+                  {t('cart.emptyDesc', 'Explore our curated handmade collection and add items to your cart.')}
                 </p>
                 <button
                   onClick={() => setIsCartOpen(false)}
                   className="px-6 py-2.5 bg-[#2E4D34] hover:bg-[#233B27] text-white text-xs font-semibold rounded-full uppercase tracking-wider transition-colors shadow-xs"
                 >
-                  Shop Now
+                  {t('cart.shopNow', 'Shop Now')}
                 </button>
               </div>
             ) : (
@@ -190,6 +161,7 @@ export const CartDrawer: React.FC = () => {
                     onClick={() => {
                       openProductPage(item.product);
                       setIsCartOpen(false);
+                      navigate(`/products/${item.product.id}`);
                     }}
                     className="w-20 h-20 p-1 flex-shrink-0 flex items-center justify-center bg-white rounded-xl border border-[#ECE7DD] cursor-pointer hover:border-[#203D26]"
                   >
@@ -207,6 +179,7 @@ export const CartDrawer: React.FC = () => {
                         onClick={() => {
                           openProductPage(item.product);
                           setIsCartOpen(false);
+                          navigate(`/products/${item.product.id}`);
                         }}
                         className="text-xs sm:text-sm font-semibold text-[#223B28] hover:text-[#2D4F32] cursor-pointer line-clamp-1 transition-colors"
                       >
@@ -222,7 +195,7 @@ export const CartDrawer: React.FC = () => {
                     {/* Pricing */}
                     <div className="flex items-baseline gap-2 mt-1">
                       <span className="text-sm font-bold text-[#223B28]">
-                        CAD ${(item.product.price * item.quantity).toFixed(2)}
+                        {formatRupees(item.product.price * item.quantity)}
                       </span>
                     </div>
 
@@ -251,7 +224,7 @@ export const CartDrawer: React.FC = () => {
                         onClick={() => removeFromCart(item.product.id)}
                         className="font-semibold text-[#7E8F80] hover:text-[#DC2626] uppercase text-[11px] transition-colors"
                       >
-                        Remove
+                        {t('cart.remove', 'Remove')}
                       </button>
                     </div>
 
@@ -273,7 +246,7 @@ export const CartDrawer: React.FC = () => {
                     type="text"
                     value={promoCode}
                     onChange={(e) => setPromoCode(e.target.value)}
-                    placeholder="Enter Coupon: CHILLY10"
+                    placeholder={t('cart.couponPlaceholder', 'Enter Coupon: CHILLY10')}
                     disabled={promoApplied}
                     className="w-full pl-9 pr-3 py-2 text-xs border border-[#ECE7DD] rounded-xl focus:outline-none focus:border-[#2E4D34] uppercase font-mono bg-white text-[#223B28]"
                   />
@@ -283,41 +256,44 @@ export const CartDrawer: React.FC = () => {
                   disabled={promoApplied}
                   className="px-4 py-2 bg-[#2E4D34] hover:bg-[#233B27] disabled:bg-[#8F9E8F] text-white text-xs font-semibold rounded-xl transition-colors"
                 >
-                  {promoApplied ? 'Applied' : 'Apply'}
+                  {promoApplied ? t('cart.applied', 'Applied') : t('cart.apply', 'Apply')}
                 </button>
               </form>
 
               {/* Bill Summary */}
               <div className="space-y-1.5 text-xs text-[#506052] pt-2 border-t border-[#E5DDD0]">
                 <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span className="font-semibold text-[#223B28]">CAD ${cartTotal.toFixed(2)}</span>
+                  <span>{t('cart.subtotal', 'Subtotal')}</span>
+                  <span className="font-semibold text-[#223B28]">{formatRupees(cartTotal)}</span>
                 </div>
                 {promoApplied && (
                   <div className="flex justify-between text-[#2E4D34]">
-                    <span>Coupon Discount (10%)</span>
-                    <span>- CAD ${discountAmount.toFixed(2)}</span>
+                    <span>{t('cart.couponDiscount', 'Coupon Discount (10%)')}</span>
+                    <span>- {formatRupees(discountAmount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span>Shipping</span>
+                  <span>{t('cart.shipping', 'Shipping')}</span>
                   <span className={deliveryCharge === 0 ? "text-[#2E4D34] font-semibold" : "font-semibold text-[#223B28]"}>
-                    {deliveryCharge === 0 ? "FREE" : `CAD $${deliveryCharge.toFixed(2)}`}
+                    {deliveryCharge === 0 ? t('cart.free', 'FREE') : formatRupees(deliveryCharge)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-bold text-[#223B28] pt-2 border-t border-[#E5DDD0]">
-                  <span>Total Amount</span>
-                  <span>CAD ${finalPayable.toFixed(2)}</span>
+                  <span>{t('cart.totalAmount', 'Total Amount')}</span>
+                  <span>{formatRupees(finalPayable)}</span>
                 </div>
               </div>
 
               {/* Checkout Button */}
               <button
-                onClick={handlePlaceOrder}
-                disabled={isOrdering}
-                className="w-full py-3.5 bg-[#2E4D34] hover:bg-[#233B27] text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-98"
+                onClick={() => {
+                  setIsCartOpen(false);
+                  navigate('/checkout');
+                }}
+                className="w-full py-3.5 bg-[#2E4D34] hover:bg-[#233B27] text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
               >
-                {isOrdering ? 'Processing Order...' : `Proceed to Checkout &bull; CAD $${finalPayable.toFixed(2)}`}
+                <Lock className="w-4 h-4" />
+                <span>{t('cart.proceedToCheckout', 'Proceed to Checkout')} &bull; {formatRupees(finalPayable)}</span>
               </button>
 
             </div>

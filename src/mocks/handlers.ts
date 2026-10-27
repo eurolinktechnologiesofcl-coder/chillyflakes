@@ -1016,14 +1016,14 @@ const isLocalhost =
   typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-// Only pass through auth to local Django when running on localhost AND VITE_USE_MOCKS_AUTH is explicitly false.
+// Only pass through auth to the local backend when running on localhost AND VITE_USE_MOCKS_AUTH is explicitly false.
 // On cloud deployments like Vercel previews (*.vercel.app), serve all mocks so the demo operates seamlessly.
-const passAuthThroughToDjango =
+const passAuthThroughToBackend =
   isLocalhost && import.meta.env.VITE_USE_MOCKS_AUTH === 'false';
 
 export const handlers = [
-  // When running locally with real Django backend, pass vendor auth and CSRF through to Django
-  ...(passAuthThroughToDjango
+  // When running locally with a real backend, pass vendor auth and CSRF through to it
+  ...(passAuthThroughToBackend
     ? [
         http.all('*/api/v1/csrf/', () => passthrough()),
         http.all('*/api/v1/vendor/auth/*', () => passthrough()),

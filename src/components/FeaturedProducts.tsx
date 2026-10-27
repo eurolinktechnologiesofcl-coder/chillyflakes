@@ -1,11 +1,25 @@
 import React from 'react';
-import { Star, ArrowRight, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { Star, ArrowRight, Eye, Heart } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useDailyProducts } from '../utils/dailyRotation';
 import type { Product } from '../types';
+import { formatRupees } from '../utils/currency';
 
 export const FeaturedProducts: React.FC = () => {
-  const { products, addToCart, openProductPage, showToast, selectedCategory, setSelectedCategory } = useStore();
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { 
+    products, 
+    addToCart, 
+    toggleWishlist, 
+    isInWishlist, 
+    openProductPage, 
+    showToast, 
+    selectedCategory, 
+    setSelectedCategory 
+  } = useStore();
 
   // Daily Rotated Products (Automatically refreshes every day at midnight with distinct category selection)
   const { featured: featuredRowProducts, trending: trendingRowProducts } = useDailyProducts(
@@ -41,11 +55,15 @@ export const FeaturedProducts: React.FC = () => {
 
   const renderProductCard = (product: Product) => {
     const subLabel = getSubLabel(product);
+    const isWishlisted = isInWishlist(product.id);
 
     return (
       <div
         key={product.id}
-        onClick={() => openProductPage(product)}
+        onClick={() => {
+          openProductPage(product);
+          navigate(`/products/${product.id}`);
+        }}
         className="group bg-white rounded-2xl overflow-hidden border border-[#ECE7DD] hover:border-[#C6D5C5] transition-all duration-300 hover:shadow-lg flex flex-col justify-between cursor-pointer"
       >
         {/* Product Image */}
@@ -64,10 +82,29 @@ export const FeaturedProducts: React.FC = () => {
             className="w-full h-full object-cover rounded-xl group-hover:scale-105 transition-transform duration-500"
           />
 
+          {/* Wishlist Heart Icon */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleWishlist(product);
+            }}
+            className="absolute top-2.5 right-2.5 p-2 rounded-full bg-white/90 hover:bg-white text-[#1D251E] shadow-xs hover:shadow-md transition-all z-10 hover:scale-110 active:scale-95 cursor-pointer"
+            title={isWishlisted ? "Remove from Wishlist" : "Save to Wishlist"}
+            aria-label="Wishlist"
+          >
+            <Heart 
+              className={`w-3.5 h-3.5 transition-colors ${
+                isWishlisted 
+                  ? 'fill-[#D82C20] text-[#D82C20]' 
+                  : 'text-[#8C6D65] hover:text-[#D82C20]'
+              }`} 
+            />
+          </button>
+
           {/* View Details Indicator on Hover */}
           <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
             <span className="bg-white/95 text-[#2E4D34] text-xs font-semibold py-1.5 px-3 rounded-full shadow-sm flex items-center gap-1">
-              <Eye className="w-3.5 h-3.5" /> View Details
+              <Eye className="w-3.5 h-3.5" /> {t('home.viewDetails', 'View Details')}
             </span>
           </div>
         </div>
@@ -87,7 +124,7 @@ export const FeaturedProducts: React.FC = () => {
 
             {/* Price */}
             <div className="mt-2 text-xs sm:text-sm font-bold text-[#223B28]">
-              CAD ${product.price.toFixed(2)}
+              {formatRupees(product.price)}
             </div>
 
             {/* Star Rating with Review Count */}
@@ -106,13 +143,13 @@ export const FeaturedProducts: React.FC = () => {
             </div>
           </div>
 
-          {/* Deep Green Add to Cart Button matching screenshot */}
+          {/* Deep Green Add to Cart Button */}
           <div className="mt-3.5 sm:mt-4 pt-1">
             <button
               onClick={(e) => handleAddToCart(e, product)}
               className="w-full py-2 bg-[#2E4D34] hover:bg-[#233B27] text-white text-xs font-medium rounded-lg transition-colors duration-200 active:scale-98 shadow-2xs"
             >
-              Add to Cart
+              {t('home.addToCart', 'Add to Cart')}
             </button>
           </div>
         </div>
@@ -124,9 +161,7 @@ export const FeaturedProducts: React.FC = () => {
   return (
     <div className="space-y-12 sm:space-y-16">
       
-      {/* ========================================================
-          LAYER 1: FEATURED PRODUCTS ROW (Matches original screenshot)
-          ======================================================== */}
+      {/* LAYER 1: FEATURED PRODUCTS ROW */}
       <section id="featured-products-section" className="pt-12 sm:pt-16 pb-2 bg-[#FAF7F2]">
         <div className="max-w-[1360px] mx-auto px-4 sm:px-6">
           
@@ -134,30 +169,31 @@ export const FeaturedProducts: React.FC = () => {
           <div className="flex items-center justify-between mb-6 sm:mb-8">
             <div>
               <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#223B28] tracking-tight">
-                Featured Products
+                {t('home.featuredTitle', 'Featured Products')}
               </h2>
               {selectedCategory !== 'All' && selectedCategory !== 'Services' ? (
                 <p className="text-xs text-[#556956] mt-1">
-                  Showing items in <span className="font-semibold text-[#2E4D34]">{selectedCategory}</span> &bull;{' '}
+                  {t('home.showingItemsIn', 'Showing items in')}{' '}
+                  <span className="font-semibold text-[#2E4D34]">{selectedCategory}</span> &bull;{' '}
                   <button 
                     onClick={() => setSelectedCategory('All')} 
                     className="underline hover:text-[#2E4D34]"
                   >
-                    View all
+                    {t('home.viewAll', 'View all')}
                   </button>
                 </p>
               ) : (
                 <p className="text-xs text-[#6C7B6D] mt-0.5">
-                  Today's curated handpicked selection
+                  {t('home.featuredSubtitle', "Today's curated handpicked selection")}
                 </p>
               )}
             </div>
 
             <button 
-              onClick={() => setSelectedCategory('All')}
+              onClick={() => navigate('/shop')}
               className="group flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#2D3A2F] hover:text-[#2E4D34] transition-colors"
             >
-              <span>View All</span>
+              <span>{t('home.viewAll', 'View All')}</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-[#2E4D34]" />
             </button>
           </div>
@@ -170,11 +206,7 @@ export const FeaturedProducts: React.FC = () => {
         </div>
       </section>
 
-      {/* ========================================================
-          LAYER 2: SECOND FEATURE LAYER (Requested New Layer)
-          - Exactly the same design
-          - 5 different products
-          ======================================================== */}
+      {/* LAYER 2: SECOND FEATURE LAYER */}
       {trendingRowProducts.length > 0 && (
         <section id="trending-products-section" className="pb-12 sm:pb-16 bg-[#FAF7F2] border-b border-[#ECE7DD]">
           <div className="max-w-[1360px] mx-auto px-4 sm:px-6">
@@ -183,18 +215,18 @@ export const FeaturedProducts: React.FC = () => {
             <div className="flex items-center justify-between mb-6 sm:mb-8">
               <div>
                 <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#223B28] tracking-tight">
-                  Trending Handcrafted Finds
+                  {t('home.trendingTitle', 'Trending Handcrafted Finds')}
                 </h2>
                 <p className="text-xs text-[#556956] mt-0.5">
-                  Today's artisan spotlight &bull; Handcrafted discoveries from local makers
+                  {t('home.trendingSubtitle', "Today's artisan spotlight • Handcrafted discoveries from local makers")}
                 </p>
               </div>
 
               <button 
-                onClick={() => setSelectedCategory('All')}
+                onClick={() => navigate('/shop')}
                 className="group flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#2D3A2F] hover:text-[#2E4D34] transition-colors"
               >
-                <span>View All</span>
+                <span>{t('home.viewAll', 'View All')}</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-[#2E4D34]" />
               </button>
             </div>
@@ -213,3 +245,4 @@ export const FeaturedProducts: React.FC = () => {
 };
 
 export default FeaturedProducts;
+

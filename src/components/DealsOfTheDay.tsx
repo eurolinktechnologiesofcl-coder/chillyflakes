@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, ArrowRight } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { formatRupees } from '../utils/currency';
 
 export const DealsOfTheDay: React.FC = () => {
   const { products, setQuickViewProduct, setSelectedCategory } = useStore();
@@ -79,7 +80,7 @@ export const DealsOfTheDay: React.FC = () => {
                   {prod.name}
                 </h3>
                 <p className="text-xs font-bold text-[#D82C20]">
-                  From ₹{prod.price}
+                  From {formatRupees(prod.price)}
                 </p>
                 <p className="text-[11px] text-[#8C6D65] truncate">
                   {prod.category}

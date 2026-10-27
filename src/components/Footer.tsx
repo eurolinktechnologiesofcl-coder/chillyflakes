@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Logo } from './Logo';
 import { useStore } from '../context/StoreContext';
+import { LanguageSwitcher } from './ui/LanguageSwitcher';
 
 export const Footer: React.FC = () => {
-  const { showToast } = useStore();
+  const { t } = useTranslation();
+  const { showToast, setSelectedCategory } = useStore();
   const [email, setEmail] = useState('');
 
   const handleSubscribe = (e: React.FormEvent) => {
@@ -12,11 +15,6 @@ export const Footer: React.FC = () => {
     if (!email) return;
     showToast('Thank you for subscribing to our newsletter!', 'success');
     setEmail('');
-  };
-
-  const scrollTo = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
@@ -28,63 +26,86 @@ export const Footer: React.FC = () => {
           
           {/* Column 1: Custom Logo + Tagline */}
           <div className="lg:col-span-4 space-y-4">
-            <Logo variant="light" size="lg" showTagline={true} />
+            <Link 
+              to="/" 
+              onClick={() => {
+                setSelectedCategory('All');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="inline-block"
+            >
+              <Logo variant="light" size="lg" showTagline={true} />
+            </Link>
             <p className="text-xs text-[#C8D6C7] max-w-sm leading-relaxed pt-2">
-              ChillyFlakes connects conscious shoppers with talented local artisans, offering 
-              handcrafted essentials, natural self-care, and skilled community services.
+              {t('footer.tagline', 'ChillyFlakes connects conscious shoppers with talented local artisans, offering handcrafted essentials, natural self-care, and skilled community services.')}
             </p>
           </div>
 
           {/* Column 2: Quick Links */}
           <div className="lg:col-span-2 space-y-3">
             <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-4">
-              Quick Links
+              {t('footer.quickLinks', 'Quick Links')}
             </h4>
             <ul className="space-y-2.5 text-xs text-[#D1DEC0]/85">
               <li>
-                <a 
-                  href="#" 
-                  onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                <Link 
+                  to="/" 
+                  onClick={() => {
+                    setSelectedCategory('All');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
                   className="hover:text-white transition-colors"
                 >
-                  Home
-                </a>
+                  {t('footer.home', 'Home')}
+                </Link>
               </li>
               <li>
-                <a 
-                  href="#shop" 
-                  onClick={(e) => { e.preventDefault(); scrollTo('shop-category-section'); }}
+                <Link 
+                  to="/shop" 
                   className="hover:text-white transition-colors"
                 >
-                  Shop
-                </a>
+                  {t('nav.shop', 'Shop Catalog')}
+                </Link>
               </li>
               <li>
-                <a 
-                  href="#services" 
-                  onClick={(e) => { e.preventDefault(); scrollTo('services-section'); }}
+                <Link 
+                  to="/services" 
                   className="hover:text-white transition-colors"
                 >
-                  Services
-                </a>
+                  {t('nav.services', 'Our Services')}
+                </Link>
               </li>
               <li>
-                <a 
-                  href="#about" 
-                  onClick={(e) => { e.preventDefault(); scrollTo('why-choose-section'); }}
+                <Link 
+                  to="/about" 
                   className="hover:text-white transition-colors"
                 >
-                  About Us
-                </a>
+                  {t('nav.about', 'About Us')}
+                </Link>
               </li>
               <li>
-                <a 
-                  href="#contact" 
-                  onClick={(e) => { e.preventDefault(); scrollTo('footer-section'); }}
+                <Link 
+                  to="/contact" 
                   className="hover:text-white transition-colors"
                 >
-                  Contact
-                </a>
+                  {t('nav.contact', 'Contact Us')}
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  to="/wishlist" 
+                  className="hover:text-white transition-colors"
+                >
+                  {t('nav.wishlist', 'My Wishlist')}
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  to="/account" 
+                  className="hover:text-white transition-colors"
+                >
+                  {t('footer.myAccount', 'My Account')}
+                </Link>
               </li>
             </ul>
           </div>
@@ -92,42 +113,47 @@ export const Footer: React.FC = () => {
           {/* Column 3: Customer Care */}
           <div className="lg:col-span-3 space-y-3">
             <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-4">
-              Customer Care
+              {t('footer.customerCare', 'Customer Care')}
             </h4>
             <ul className="space-y-2.5 text-xs text-[#D1DEC0]/85">
               <li>
-                <a 
-                  href="#faq" 
-                  onClick={(e) => { e.preventDefault(); alert("FAQs: 100% handmade and inspected with 7-day hassle-free doorstep returns."); }}
+                <Link 
+                  to="/account?tab=orders" 
                   className="hover:text-white transition-colors"
                 >
-                  FAQs
-                </a>
+                  {t('footer.trackOrder', 'Track My Order')}
+                </Link>
               </li>
               <li>
-                <a 
-                  href="#shipping" 
-                  onClick={(e) => { e.preventDefault(); alert("Shipping Policy: Express door-to-door delivery within 48-72 hours."); }}
+                <Link 
+                  to="/account?tab=bookings" 
                   className="hover:text-white transition-colors"
                 >
-                  Shipping Policy
-                </a>
+                  {t('footer.serviceAppointments', 'Service Appointments')}
+                </Link>
               </li>
               <li>
-                <a 
-                  href="#returns" 
-                  onClick={(e) => { e.preventDefault(); alert("Return Policy: Easy 7-day replacement guarantee on all eligible items."); }}
+                <Link 
+                  to="/account?tab=addresses" 
                   className="hover:text-white transition-colors"
                 >
-                  Return Policy
-                </a>
+                  {t('footer.deliveryAddresses', 'Delivery Addresses')}
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  to="/contact" 
+                  className="hover:text-white transition-colors text-[#A3C4A5] font-medium"
+                >
+                  {t('footer.artisanSelling', 'Artisan Direct Selling')}
+                </Link>
               </li>
               <li>
                 <Link 
                   to="/privacy" 
                   className="hover:text-white transition-colors"
                 >
-                  Privacy Policy
+                  {t('footer.privacyPolicy', 'Privacy Policy')}
                 </Link>
               </li>
               <li>
@@ -135,7 +161,7 @@ export const Footer: React.FC = () => {
                   to="/terms" 
                   className="hover:text-white transition-colors"
                 >
-                  Terms & Conditions
+                  {t('footer.termsConditions', 'Terms & Conditions')}
                 </Link>
               </li>
             </ul>
@@ -144,7 +170,7 @@ export const Footer: React.FC = () => {
           {/* Column 4: Stay Connected & Newsletter */}
           <div className="lg:col-span-3 space-y-4">
             <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-2">
-              Stay Connected
+              {t('footer.stayConnected', 'Stay Connected')}
             </h4>
 
             {/* Social Icons matching screenshot (FB, IG, Pinterest, YouTube) */}
@@ -229,16 +255,22 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Bottom Bar matching screenshot */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-[#B2C5B1] gap-3">
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-[#B2C5B1] gap-4">
           <p>
-            &copy; 2026 ChillyFlakes. All rights reserved.
+            {t('footer.rights', '© 2026 ChillyFlakes. All rights reserved.')}
           </p>
-          <div className="flex items-center gap-3 text-xs text-[#C8D6C7]">
-            <span>Shop Natural</span>
-            <span className="text-[#4E7052]">&bull;</span>
-            <span>Shop Handmade</span>
-            <span className="text-[#4E7052]">&bull;</span>
-            <span>Make a Difference</span>
+          <div className="flex items-center gap-4 flex-wrap justify-center">
+            <div className="flex items-center gap-2">
+              <span className="text-white/70">{t('footer.language', 'Language:')}</span>
+              <LanguageSwitcher variant="dark" />
+            </div>
+            <div className="hidden md:flex items-center gap-3 text-xs text-[#C8D6C7]">
+              <span>{t('footer.shopNatural', 'Shop Natural')}</span>
+              <span className="text-[#4E7052]">&bull;</span>
+              <span>{t('footer.shopHandmade', 'Shop Handmade')}</span>
+              <span className="text-[#4E7052]">&bull;</span>
+              <span>{t('footer.makeDifference', 'Make a Difference')}</span>
+            </div>
           </div>
         </div>
 

@@ -18,3 +18,24 @@ export function formatINR(paise: number, showDecimals: boolean = false): string 
 export function formatIndianNumber(num: number): string {
   return new Intl.NumberFormat('en-IN').format(num);
 }
+
+/**
+ * Formats an amount already in rupees (buyer storefront prices) as INR
+ * with Indian digit grouping. Whole amounts drop decimals (₹1,299),
+ * fractional amounts keep two (₹129.90).
+ */
+export function formatRupees(rupees: number): string {
+  const hasFraction = !Number.isInteger(Math.round(rupees * 100) / 100);
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: hasFraction ? 2 : 0,
+    minimumFractionDigits: hasFraction ? 2 : 0,
+  }).format(rupees);
+}
+
+/** Orders at or above this amount (in rupees) ship free. */
+export const FREE_SHIPPING_THRESHOLD = 499;
+
+/** Flat delivery charge (in rupees) for orders below the free-shipping threshold. */
+export const DELIVERY_CHARGE = 49;

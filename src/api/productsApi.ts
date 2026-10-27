@@ -11,8 +11,8 @@ export interface ProductFilterParams {
 }
 
 /**
- * Django Products API Service
- * Maps to Django endpoints:
+ * Products API Service
+ * Maps to backend endpoints:
  * - GET  /api/products/
  * - GET  /api/products/:id/
  * - GET  /api/products/featured/
@@ -20,7 +20,7 @@ export interface ProductFilterParams {
  */
 export const productsApi = {
   /**
-   * Fetch list of products with optional Django query parameter filters.
+   * Fetch list of products with optional query parameter filters.
    */
   async getProducts(params?: ProductFilterParams): Promise<ApiResponse<Product[]>> {
     const query = new URLSearchParams();
@@ -43,7 +43,7 @@ export const productsApi = {
 
     const endpoint = `products/${query.toString() ? `?${query.toString()}` : ''}`;
 
-    // Filter local fallback in case Django backend is not yet started
+    // Filter local fallback in case the backend is not yet running
     let fallback = [...localProducts];
     if (params?.category && params.category !== 'All') {
       fallback = fallback.filter((p) => p.category.toLowerCase() === params.category!.toLowerCase());
@@ -65,7 +65,7 @@ export const productsApi = {
   },
 
   /**
-   * Fetch single product detail by ID or Slug from Django.
+   * Fetch single product detail by ID or Slug from the backend.
    */
   async getProductById(id: string): Promise<ApiResponse<Product | null>> {
     const fallback = localProducts.find((p) => p.id === id) || null;

@@ -3,14 +3,14 @@ import type { Category } from '../types';
 import { categories as localCategories } from '../data/categories';
 
 /**
- * Django Categories API Service
- * Maps to Django endpoints:
+ * Categories API Service
+ * Maps to backend endpoints:
  * - GET  /api/categories/
  * - GET  /api/categories/:id/
  */
 export const categoriesApi = {
   /**
-   * Fetch all product and service categories from Django.
+   * Fetch all product and service categories from the backend.
    */
   async getCategories(): Promise<ApiResponse<Category[]>> {
     return apiClient.get<Category[]>('categories/', localCategories);

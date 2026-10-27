@@ -35,15 +35,15 @@ export interface CouponValidationResponse {
 }
 
 /**
- * Django Orders & Checkout API Service
- * Maps to Django endpoints:
+ * Orders & Checkout API Service
+ * Maps to backend endpoints:
  * - POST /api/orders/
  * - GET  /api/orders/
  * - POST /api/coupons/validate/
  */
 export const ordersApi = {
   /**
-   * Submit an order / checkout to Django backend.
+   * Submit an order / checkout to the backend.
    */
   async createOrder(orderData: CreateOrderRequest): Promise<ApiResponse<CreateOrderResponse>> {
     const fallback: CreateOrderResponse = {
@@ -59,7 +59,7 @@ export const ordersApi = {
   },
 
   /**
-   * Validate coupon code against Django backend.
+   * Validate coupon code against the backend.
    */
   async validateCoupon(code: string): Promise<ApiResponse<CouponValidationResponse>> {
     const clean = code.trim().toUpperCase();

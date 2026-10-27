@@ -1,22 +1,33 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   Search, 
   ShoppingCart, 
   ChevronDown, 
   Menu, 
-  X 
+  X,
+  Heart,
+  User
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Logo } from './Logo';
+import { formatRupees } from '../utils/currency';
+import { LanguageSwitcher } from './ui/LanguageSwitcher';
 
 export const Navbar: React.FC = () => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const { 
     cartCount, 
     setIsCartOpen, 
     products, 
-    setSelectedCategory,
-    openProductPage,
-    closeProductPage
+    wishlist,
+    user,
+    setIsLoginOpen,
+    setSelectedCategory
   } = useStore();
 
   const [searchInput, setSearchInput] = useState('');
@@ -26,6 +37,37 @@ export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const searchRef = useRef<HTMLDivElement>(null);
+  const shopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const servicesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleShopMouseEnter = () => {
+    if (shopTimeoutRef.current) clearTimeout(shopTimeoutRef.current);
+    setShowShopDropdown(true);
+  };
+
+  const handleShopMouseLeave = () => {
+    shopTimeoutRef.current = setTimeout(() => {
+      setShowShopDropdown(false);
+    }, 180);
+  };
+
+  const handleServicesMouseEnter = () => {
+    if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
+    setShowServicesDropdown(true);
+  };
+
+  const handleServicesMouseLeave = () => {
+    servicesTimeoutRef.current = setTimeout(() => {
+      setShowServicesDropdown(false);
+    }, 180);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (shopTimeoutRef.current) clearTimeout(shopTimeoutRef.current);
+      if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -45,36 +87,44 @@ export const Navbar: React.FC = () => {
       ).slice(0, 5);
 
   const handleSelectProduct = (product: any) => {
-    openProductPage(product);
     setShowSuggestions(false);
     setSearchInput('');
+    navigate(`/products/${product.id}`);
+  };
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (searchInput.trim()) {
+      setShowSuggestions(false);
+      navigate(`/shop?q=${encodeURIComponent(searchInput.trim())}`);
+    }
   };
 
   const handleCategoryNav = (cat: string) => {
-    closeProductPage();
+    if (shopTimeoutRef.current) clearTimeout(shopTimeoutRef.current);
     setSelectedCategory(cat);
     setShowShopDropdown(false);
     setMobileMenuOpen(false);
-    const shopEl = document.getElementById('featured-products-section');
-    if (shopEl) shopEl.scrollIntoView({ behavior: 'smooth' });
+    navigate(`/shop?category=${encodeURIComponent(cat)}`);
   };
 
-  const handleServicesNav = (serviceName?: string) => {
+  const handleServicesNav = () => {
+    if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
     setShowServicesDropdown(false);
     setMobileMenuOpen(false);
-    const servicesEl = document.getElementById('services-section');
-    if (servicesEl) {
-      servicesEl.scrollIntoView({ behavior: 'smooth' });
-      if (serviceName) {
-        // highlight or inform
-      }
-    }
+    navigate('/services');
   };
+
+  const isHomeActive = location.pathname === '/';
+  const isShopActive = location.pathname.startsWith('/shop');
+  const isServicesActive = location.pathname === '/services';
+  const isAboutActive = location.pathname === '/about';
+  const isContactActive = location.pathname === '/contact';
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-[#ECE7DD] shadow-[0_2px_12px_rgba(46,77,52,0.04)]">
       <div className="max-w-[1360px] mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-20 gap-4 lg:gap-8">
+        <div className="flex items-center justify-between h-20 gap-3 sm:gap-4 lg:gap-8">
           
           {/* Mobile hamburger */}
           <button 
@@ -85,24 +135,26 @@ export const Navbar: React.FC = () => {
             <Menu className="w-6 h-6" />
           </button>
 
-          {/* Left: Custom ChillyFlakes Logo (Curved red chilly in plate like a smile + green tail) */}
+          {/* Left: Custom ChillyFlakes Logo */}
           <div className="flex items-center flex-shrink-0">
-            <a 
-              href="#" 
-              onClick={(e) => {
-                e.preventDefault();
-                closeProductPage();
+            <Link 
+              to="/" 
+              onClick={() => {
+                setSelectedCategory('All');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className="group py-1"
             >
               <Logo variant="dark" size="md" showTagline={true} />
-            </a>
+            </Link>
           </div>
 
           {/* Center: Search Bar with Integrated Forest Green Button */}
           <div ref={searchRef} className="relative flex-1 max-w-xl mx-2 sm:mx-6 hidden sm:block">
-            <div className="relative flex items-center bg-white rounded-full border border-[#B6C6B5] focus-within:border-[#2E4D34] focus-within:ring-2 focus-within:ring-[#2E4D34]/15 transition-all pl-4 pr-1 py-1 shadow-xs">
+            <form 
+              onSubmit={handleSearchSubmit}
+              className="relative flex items-center bg-white rounded-full border border-[#B6C6B5] focus-within:border-[#2E4D34] focus-within:ring-2 focus-within:ring-[#2E4D34]/15 transition-all pl-4 pr-1 py-1 shadow-xs"
+            >
               <input
                 type="text"
                 value={searchInput}
@@ -111,12 +163,13 @@ export const Navbar: React.FC = () => {
                   setShowSuggestions(true);
                 }}
                 onFocus={() => setShowSuggestions(true)}
-                placeholder="Search for products, sellers, or services..."
+                placeholder={t('nav.searchPlaceholder', 'Search handcrafted products, spices, or artisans...')}
                 className="w-full py-1.5 pr-3 text-xs sm:text-sm text-[#223B28] placeholder-[#7E8F80] bg-transparent focus:outline-none"
               />
 
               {searchInput && (
                 <button 
+                  type="button"
                   onClick={() => setSearchInput('')} 
                   className="pr-2 text-[#7E8F80] hover:text-[#223B28]"
                   title="Clear search"
@@ -125,25 +178,22 @@ export const Navbar: React.FC = () => {
                 </button>
               )}
 
-              {/* Integrated Forest Green Search Button matching screenshot */}
+              {/* Integrated Forest Green Search Button */}
               <button 
-                onClick={() => {
-                  if (searchSuggestions.length > 0) {
-                    handleSelectProduct(searchSuggestions[0]);
-                  }
-                }}
+                type="submit"
                 className="w-9 h-9 rounded-full bg-[#2E4D34] hover:bg-[#233B27] flex items-center justify-center text-white flex-shrink-0 transition-transform active:scale-95 shadow-xs"
                 title="Search"
               >
                 <Search className="w-4 h-4" />
               </button>
-            </div>
+            </form>
 
             {/* Instant Search Suggestions Dropdown */}
             {showSuggestions && searchSuggestions.length > 0 && (
               <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-[#ECE7DD] overflow-hidden z-50 text-[#223B28]">
-                <div className="px-4 py-2 text-[11px] font-semibold text-[#5E6D60] uppercase border-b border-[#F4EFE6] bg-[#FAF7F2]">
-                  Products & Suggestions
+                <div className="px-4 py-2 text-[11px] font-semibold text-[#5E6D60] uppercase border-b border-[#F4EFE6] bg-[#FAF7F2] flex items-center justify-between">
+                  <span>Products & Suggestions</span>
+                  <span className="text-[10px] text-[#2E4D34] font-normal">Press Enter to view all</span>
                 </div>
                 {searchSuggestions.map((prod) => (
                   <div
@@ -160,127 +210,226 @@ export const Navbar: React.FC = () => {
                         <p className="text-[10px] text-[#5E6D60]">{prod.category}</p>
                       </div>
                     </div>
-                    <span className="text-xs font-bold text-[#2E4D34]">CAD ${prod.price.toFixed(2)}</span>
+                    <span className="text-xs font-bold text-[#2E4D34]">{formatRupees(prod.price)}</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Right: Navigation Links matching screenshot */}
-          <nav className="flex items-center gap-6 lg:gap-8">
+          {/* Right: Navigation Links & Actions */}
+          <nav className="flex items-center gap-4 sm:gap-6 lg:gap-7">
             {/* Desktop Navigation Links */}
-            <div className="hidden lg:flex items-center gap-7 text-sm font-medium text-[#2D3A2F]">
+            <div className="hidden lg:flex items-center gap-6 text-sm font-medium text-[#2D3A2F]">
               
-              {/* Home - Active with green bottom border indicator */}
-              <a 
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
+              {/* Home */}
+              <Link 
+                to="/"
+                onClick={() => {
+                  setSelectedCategory('All');
                 }}
-                className="text-[#2E4D34] font-semibold border-b-2 border-[#2E4D34] pb-1 transition-colors"
+                className={`py-1 transition-colors ${
+                  isHomeActive 
+                    ? 'text-[#2E4D34] font-bold border-b-2 border-[#2E4D34]' 
+                    : 'hover:text-[#2E4D34]'
+                }`}
               >
-                Home
-              </a>
+                {t('nav.home', 'Home')}
+              </Link>
 
               {/* Shop ▾ with Dropdown */}
               <div 
-                className="relative"
-                onMouseEnter={() => setShowShopDropdown(true)}
-                onMouseLeave={() => setShowShopDropdown(false)}
+                className="relative py-2"
+                onMouseEnter={handleShopMouseEnter}
+                onMouseLeave={handleShopMouseLeave}
               >
-                <button 
-                  onClick={() => {
-                    const el = document.getElementById('shop-category-section');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="flex items-center gap-1 hover:text-[#2E4D34] transition-colors py-2"
+                <Link 
+                  to="/shop"
+                  className={`flex items-center gap-1 py-1 transition-colors ${
+                    isShopActive 
+                      ? 'text-[#2E4D34] font-bold border-b-2 border-[#2E4D34]' 
+                      : 'hover:text-[#2E4D34]'
+                  }`}
                 >
-                  <span>Shop</span>
+                  <span>{t('nav.shop', 'Shop')}</span>
                   <ChevronDown className="w-3.5 h-3.5 text-[#7E8F80]" />
-                </button>
+                </Link>
 
                 {showShopDropdown && (
-                  <div className="absolute left-0 top-full mt-1 w-56 bg-white rounded-xl shadow-xl border border-[#ECE7DD] py-2 z-50">
-                    {['Natural Products', 'Handmade Products', 'Jewelry', 'Clothes & Fashion', 'Home & Living', 'Retail Products'].map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => handleCategoryNav(cat)}
-                        className="w-full text-left px-4 py-2 text-xs font-medium text-[#2D3A2F] hover:bg-[#FAF7F2] hover:text-[#2E4D34] transition-colors"
+                  <div 
+                    className="absolute left-0 top-full pt-1 w-60 z-50 animate-in fade-in duration-150"
+                    onMouseEnter={handleShopMouseEnter}
+                    onMouseLeave={handleShopMouseLeave}
+                  >
+                    <div className="bg-white rounded-2xl shadow-xl border border-[#ECE7DD] py-2 overflow-hidden">
+                      <Link
+                        to="/shop"
+                        onClick={() => {
+                          if (shopTimeoutRef.current) clearTimeout(shopTimeoutRef.current);
+                          setShowShopDropdown(false);
+                        }}
+                        className="block px-4 py-2.5 text-xs font-bold text-[#2E4D34] hover:bg-[#FAF7F2] border-b border-[#F4EFE6] transition-colors"
                       >
-                        {cat}
-                      </button>
-                    ))}
+                        {t('nav.allCategories', 'All Categories →')}
+                      </Link>
+                      {[
+                        { name: 'Natural Products', key: 'categories.naturalProducts' },
+                        { name: 'Handmade Products', key: 'categories.handmadeProducts' },
+                        { name: 'Jewelry', key: 'categories.jewelry' },
+                        { name: 'Clothes & Fashion', key: 'categories.clothesFashion' },
+                        { name: 'Home & Living', key: 'categories.homeLiving' },
+                        { name: 'Retail Products', key: 'categories.retailProducts' }
+                      ].map((cat) => (
+                        <button
+                          key={cat.name}
+                          onClick={() => handleCategoryNav(cat.name)}
+                          className="w-full text-left px-4 py-2.5 text-xs font-medium text-[#2D3A2F] hover:bg-[#FAF7F2] hover:text-[#2E4D34] transition-colors cursor-pointer"
+                        >
+                          {t(cat.key, cat.name)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
               {/* Services ▾ with Dropdown */}
               <div 
-                className="relative"
-                onMouseEnter={() => setShowServicesDropdown(true)}
-                onMouseLeave={() => setShowServicesDropdown(false)}
+                className="relative py-2"
+                onMouseEnter={handleServicesMouseEnter}
+                onMouseLeave={handleServicesMouseLeave}
               >
-                <button 
-                  onClick={() => handleServicesNav()}
-                  className="flex items-center gap-1 hover:text-[#2E4D34] transition-colors py-2"
+                <Link 
+                  to="/services"
+                  className={`flex items-center gap-1 py-1 transition-colors ${
+                    isServicesActive 
+                      ? 'text-[#2E4D34] font-bold border-b-2 border-[#2E4D34]' 
+                      : 'hover:text-[#2E4D34]'
+                  }`}
                 >
-                  <span>Services</span>
+                  <span>{t('nav.services', 'Services')}</span>
                   <ChevronDown className="w-3.5 h-3.5 text-[#7E8F80]" />
-                </button>
+                </Link>
 
                 {showServicesDropdown && (
-                  <div className="absolute left-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-[#ECE7DD] py-2 z-50">
-                    {['Massage Therapy', 'Beauty & Skincare', 'Tutoring', 'Home Cleaning'].map((service) => (
-                      <button
-                        key={service}
-                        onClick={() => handleServicesNav(service)}
-                        className="w-full text-left px-4 py-2 text-xs font-medium text-[#2D3A2F] hover:bg-[#FAF7F2] hover:text-[#2E4D34] transition-colors"
+                  <div 
+                    className="absolute left-0 top-full pt-1 w-56 z-50 animate-in fade-in duration-150"
+                    onMouseEnter={handleServicesMouseEnter}
+                    onMouseLeave={handleServicesMouseLeave}
+                  >
+                    <div className="bg-white rounded-2xl shadow-xl border border-[#ECE7DD] py-2 overflow-hidden">
+                      <Link
+                        to="/services"
+                        onClick={() => {
+                          if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
+                          setShowServicesDropdown(false);
+                        }}
+                        className="block px-4 py-2.5 text-xs font-bold text-[#2E4D34] hover:bg-[#FAF7F2] border-b border-[#F4EFE6] transition-colors"
                       >
-                        {service}
-                      </button>
-                    ))}
+                        {t('nav.browseAllServices', 'Browse All Services →')}
+                      </Link>
+                      {[
+                        { title: 'Massage Therapy', key: 'services.items.srv-massage.title' },
+                        { title: 'Beauty & Skincare', key: 'services.items.srv-beauty.title' },
+                        { title: 'Tutoring', key: 'services.items.srv-tutoring.title' },
+                        { title: 'Home Cleaning', key: 'services.items.srv-cleaning.title' }
+                      ].map((service) => (
+                        <button
+                          key={service.title}
+                          onClick={() => handleServicesNav()}
+                          className="w-full text-left px-4 py-2.5 text-xs font-medium text-[#2D3A2F] hover:bg-[#FAF7F2] hover:text-[#2E4D34] transition-colors cursor-pointer"
+                        >
+                          {t(service.key, service.title)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
               {/* About Us */}
-              <a 
-                href="#about"
-                onClick={(e) => {
-                  e.preventDefault();
-                  const el = document.getElementById('why-choose-section');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="hover:text-[#2E4D34] transition-colors"
+              <Link 
+                to="/about"
+                className={`py-1 transition-colors ${
+                  isAboutActive 
+                    ? 'text-[#2E4D34] font-bold border-b-2 border-[#2E4D34]' 
+                    : 'hover:text-[#2E4D34]'
+                }`}
               >
-                About Us
-              </a>
+                {t('nav.about', 'About Us')}
+              </Link>
 
               {/* Contact */}
-              <a 
-                href="#contact"
-                onClick={(e) => {
-                  e.preventDefault();
-                  const el = document.getElementById('footer-section');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="hover:text-[#2E4D34] transition-colors"
+              <Link 
+                to="/contact"
+                className={`py-1 transition-colors ${
+                  isContactActive 
+                    ? 'text-[#2E4D34] font-bold border-b-2 border-[#2E4D34]' 
+                    : 'hover:text-[#2E4D34]'
+                }`}
               >
-                Contact
-              </a>
+                {t('nav.contact', 'Contact')}
+              </Link>
             </div>
 
-            {/* Cart Icon (0) */}
-            <button 
-              onClick={() => setIsCartOpen(true)}
-              className="flex items-center gap-1.5 text-[#2E4D34] hover:text-[#233B27] font-medium transition-colors"
-              aria-label="Shopping Cart"
-            >
-              <ShoppingCart className="w-5 h-5 text-[#2E4D34]" />
-              <span className="text-sm font-semibold">({cartCount})</span>
-            </button>
+            {/* Action Icons */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Wishlist Icon */}
+              <Link 
+                to="/wishlist"
+                className="relative p-2 rounded-full hover:bg-[#F2F5F0] text-[#2E4D34] transition-colors flex items-center justify-center"
+                title="Wishlist"
+                aria-label="Wishlist"
+              >
+                <Heart className={`w-5 h-5 ${wishlist.length > 0 ? 'fill-[#D82C20] text-[#D82C20]' : 'text-[#2E4D34]'}`} />
+                {wishlist.length > 0 && (
+                  <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-[#D82C20] text-white text-[9px] font-bold rounded-full flex items-center justify-center shadow-xs">
+                    {wishlist.length}
+                  </span>
+                )}
+              </Link>
+
+              {/* Cart Icon */}
+              <button 
+                onClick={() => setIsCartOpen(true)}
+                className="flex items-center gap-1.5 p-2 rounded-full hover:bg-[#F2F5F0] text-[#2E4D34] hover:text-[#233B27] font-medium transition-colors"
+                aria-label="Shopping Cart"
+              >
+                <div className="relative">
+                  <ShoppingCart className="w-5 h-5 text-[#2E4D34]" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 bg-[#2E4D34] text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs">
+                      {cartCount}
+                    </span>
+                  )}
+                </div>
+              </button>
+
+              {/* User Account / Sign In */}
+              {user?.isLoggedIn ? (
+                <Link
+                  to="/account"
+                  className="flex items-center gap-2 p-1.5 rounded-full hover:bg-[#F2F5F0] transition-colors"
+                  title="My Account"
+                  aria-label="My Account"
+                >
+                  <div className="w-8 h-8 rounded-full bg-[#EAF1EA] text-[#2E4D34] flex items-center justify-center font-bold text-xs border border-[#CDE1CB]">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="hidden xl:inline text-xs font-semibold text-[#223B28]">
+                    {user.name.split(' ')[0]}
+                  </span>
+                </Link>
+              ) : (
+                <button
+                  onClick={() => setIsLoginOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#2E4D34] text-[#2E4D34] hover:bg-[#2E4D34] hover:text-white transition-all text-xs font-semibold"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t('nav.signIn', 'Sign In')}</span>
+                </button>
+              )}
+            </div>
 
           </nav>
 
@@ -288,23 +437,24 @@ export const Navbar: React.FC = () => {
 
         {/* Mobile Search Bar visible on small devices */}
         <div className="pb-3 sm:hidden">
-          <div className="relative flex items-center bg-white rounded-full border border-[#B6C6B5] pl-4 pr-1 py-1">
+          <form 
+            onSubmit={handleSearchSubmit}
+            className="relative flex items-center bg-white rounded-full border border-[#B6C6B5] pl-4 pr-1 py-1"
+          >
             <input
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search products..."
+              placeholder={t('nav.searchMobile', t('nav.searchPlaceholder', 'Search products...'))}
               className="w-full py-1 pr-3 text-xs text-[#223B28] placeholder-[#7E8F80] bg-transparent focus:outline-none"
             />
             <button 
-              onClick={() => {
-                if (searchSuggestions.length > 0) handleSelectProduct(searchSuggestions[0]);
-              }}
+              type="submit"
               className="w-8 h-8 rounded-full bg-[#2E4D34] flex items-center justify-center text-white"
             >
               <Search className="w-3.5 h-3.5" />
             </button>
-          </div>
+          </form>
         </div>
 
       </div>
@@ -316,7 +466,7 @@ export const Navbar: React.FC = () => {
             className="fixed inset-0 bg-black/40 backdrop-blur-xs"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 w-72 bg-white shadow-2xl p-6 flex flex-col justify-between z-50">
+          <div className="fixed inset-y-0 left-0 w-72 bg-white shadow-2xl p-6 flex flex-col justify-between z-50 overflow-y-auto">
             <div>
               <div className="flex items-center justify-between pb-4 border-b border-[#ECE7DD]">
                 <Logo variant="dark" size="sm" showTagline={false} />
@@ -328,66 +478,76 @@ export const Navbar: React.FC = () => {
                 </button>
               </div>
 
-              <div className="py-6 space-y-4 text-sm font-medium text-[#2D3A2F]">
-                <button 
+              <div className="py-6 space-y-3 text-sm font-medium text-[#2D3A2F]">
+                <Link 
+                  to="/"
                   onClick={() => {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    setSelectedCategory('All');
                     setMobileMenuOpen(false);
                   }}
-                  className="w-full text-left py-1 text-[#2E4D34] font-semibold"
+                  className="block py-2 text-[#2E4D34] font-semibold border-b border-[#F4EFE6]"
                 >
-                  Home
-                </button>
-                <button 
-                  onClick={() => {
-                    const el = document.getElementById('shop-category-section');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left py-1 hover:text-[#2E4D34]"
+                  {t('nav.home', 'Home')}
+                </Link>
+                <Link 
+                  to="/shop"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 hover:text-[#2E4D34] border-b border-[#F4EFE6]"
                 >
-                  Shop by Category
-                </button>
-                <button 
-                  onClick={() => {
-                    const el = document.getElementById('featured-products-section');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left py-1 hover:text-[#2E4D34]"
+                  {t('nav.shop', 'Shop Catalog')}
+                </Link>
+                <Link 
+                  to="/services"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 hover:text-[#2E4D34] border-b border-[#F4EFE6]"
                 >
-                  Featured Products
-                </button>
-                <button 
-                  onClick={() => handleServicesNav()}
-                  className="w-full text-left py-1 hover:text-[#2E4D34]"
+                  {t('nav.services', 'Our Services')}
+                </Link>
+                <Link 
+                  to="/wishlist"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between py-2 hover:text-[#2E4D34] border-b border-[#F4EFE6]"
                 >
-                  Our Services
-                </button>
-                <button 
-                  onClick={() => {
-                    const el = document.getElementById('why-choose-section');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left py-1 hover:text-[#2E4D34]"
+                  <span>{t('nav.wishlist', 'My Wishlist')}</span>
+                  {wishlist.length > 0 && (
+                    <span className="bg-[#D82C20] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      {wishlist.length}
+                    </span>
+                  )}
+                </Link>
+                <Link 
+                  to="/account"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 hover:text-[#2E4D34] border-b border-[#F4EFE6]"
                 >
-                  Why Choose Us
-                </button>
-                <button 
-                  onClick={() => {
-                    const el = document.getElementById('footer-section');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left py-1 hover:text-[#2E4D34]"
+                  {t('nav.account', 'My Orders & Account')}
+                </Link>
+                <Link 
+                  to="/about"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`block py-2 hover:text-[#2E4D34] border-b border-[#F4EFE6] ${
+                    isAboutActive ? 'text-[#2E4D34] font-bold' : ''
+                  }`}
                 >
-                  Contact
-                </button>
+                  {t('nav.about', 'About Us')}
+                </Link>
+                <Link 
+                  to="/contact"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`block py-2 hover:text-[#2E4D34] ${
+                    isContactActive ? 'text-[#2E4D34] font-bold' : ''
+                  }`}
+                >
+                  {t('nav.contact', 'Contact Us')}
+                </Link>
               </div>
             </div>
 
-            <div className="pt-6 border-t border-[#ECE7DD]">
+            <div className="pt-6 border-t border-[#ECE7DD] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#5F6D61]">Language / ഭാഷ:</span>
+                <LanguageSwitcher variant="light" />
+              </div>
               <p className="text-xs text-[#7E8F80]">
                 Natural • Handmade • Unique
               </p>

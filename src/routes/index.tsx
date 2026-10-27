@@ -1,6 +1,16 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import App from '../App';
+import { BuyerLayout } from '../layouts/BuyerLayout';
+import { HomePage } from '../pages/HomePage';
+import { ShopPage } from '../pages/ShopPage';
+import { ProductDetailsPage } from '../pages/ProductDetailsPage';
+import { CheckoutPage } from '../pages/CheckoutPage';
+import { OrderSuccessPage } from '../pages/OrderSuccessPage';
+import { BuyerAccountPage } from '../pages/BuyerAccountPage';
+import { WishlistPage } from '../pages/WishlistPage';
+import { ServicesPage } from '../pages/ServicesPage';
+import { AboutUsPage } from '../pages/AboutUsPage';
+import { ContactUsPage } from '../pages/ContactUsPage';
 import { AuthLayout } from '../layouts/AuthLayout';
 import { VendorRegisterPage } from '../features/auth/pages/VendorRegisterPage';
 import { VendorLoginPage } from '../features/auth/pages/VendorLoginPage';
@@ -36,8 +46,22 @@ import { RequirePermission } from './RequirePermission';
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      {/* Existing Buyer Landing Page route */}
-      <Route path="/" element={<App />} />
+      {/* 100% Complete Buyer Experience Routes */}
+      <Route element={<BuyerLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/shop" element={<ShopPage />} />
+        <Route path="/products/:id" element={<ProductDetailsPage />} />
+        <Route path="/product/:id" element={<ProductDetailsPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
+        <Route path="/account" element={<BuyerAccountPage />} />
+        <Route path="/account/*" element={<BuyerAccountPage />} />
+        <Route path="/wishlist" element={<WishlistPage />} />
+        <Route path="/services" element={<ServicesPage />} />
+        <Route path="/about" element={<AboutUsPage />} />
+        <Route path="/contact" element={<ContactUsPage />} />
+        <Route path="/cart" element={<Navigate to="/checkout" replace />} />
+      </Route>
 
       {/* Vendor Authentication & Onboarding Routes */}
       <Route

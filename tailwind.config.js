@@ -74,6 +74,11 @@ export default {
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', '"Noto Sans Malayalam"', '"Noto Sans Tamil"', '"Noto Sans Devanagari"', '"Noto Sans Kannada"', '"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
         serif: ['"Playfair Display"', 'Georgia', 'serif'],
+        script: ['"Pinyon Script"', 'cursive'],
+        display: ['"Instrument Sans"', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        editorial: ['"Instrument Serif"', 'Georgia', 'serif'],
+        marquee: ['"Figtree"', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        condensed: ['"Oswald"', '"Arial Narrow"', 'sans-serif'],
       },
       boxShadow: {
         'soft': '0 2px 10px 0 rgba(60, 74, 62, 0.05)',

@@ -3,6 +3,7 @@ import { Search, X, ArrowRight, Tag } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { productsApi } from '../api';
 import type { Product } from '../types';
+import { formatRupees } from '../utils/currency';
 
 export const SearchModal: React.FC = () => {
   const { isSearchOpen, setIsSearchOpen, products, openProductPage } = useStore();
@@ -20,7 +21,7 @@ export const SearchModal: React.FC = () => {
     }
   }, [isSearchOpen]);
 
-  // Live debounced search via Django backend API with local fallback
+  // Live debounced search via the backend API with local fallback
   useEffect(() => {
     if (!searchTerm.trim()) {
       setApiResults([]);
@@ -163,7 +164,7 @@ export const SearchModal: React.FC = () => {
 
                   <div className="flex items-center gap-3">
                     <span className="font-bold text-sm text-[#3C4A3E]">
-                      ₹{product.price}
+                      {formatRupees(product.price)}
                     </span>
                     <ArrowRight className="w-4 h-4 text-[#3C4A3E] opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>

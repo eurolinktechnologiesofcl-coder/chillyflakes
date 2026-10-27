@@ -16,9 +16,9 @@ export interface AuthResponse {
 }
 
 /**
- * Django Authentication API Service
- * Compatible with Django REST Framework TokenAuth and SimpleJWT.
- * Maps to Django endpoints:
+ * Authentication API Service
+ * Compatible with token-based (JWT) authentication.
+ * Maps to backend endpoints:
  * - POST /api/auth/login/ (or /api/token/)
  * - POST /api/auth/register/
  * - GET  /api/auth/user/
@@ -27,7 +27,7 @@ export interface AuthResponse {
  */
 export const authApi = {
   /**
-   * Login with email, phone, or OTP via Django backend.
+   * Login with email, phone, or OTP via the backend.
    */
   async login(identifier: string, otpOrPassword = '1234'): Promise<ApiResponse<AuthResponse>> {
     const fallbackUser: UserProfile = {
@@ -39,7 +39,7 @@ export const authApi = {
     };
 
     const fallback: AuthResponse = {
-      token: `django_token_${Date.now()}`,
+      token: `mock_token_${Date.now()}`,
       access: `jwt_access_${Date.now()}`,
       user: fallbackUser,
     };
@@ -58,7 +58,7 @@ export const authApi = {
   },
 
   /**
-   * Request OTP from Django SMS/Email gateway.
+   * Request OTP via the backend SMS/Email gateway.
    */
   async sendOtp(phoneOrEmail: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
     const fallback = {
@@ -74,7 +74,7 @@ export const authApi = {
   },
 
   /**
-   * Fetch current authenticated user from Django.
+   * Fetch current authenticated user from the backend.
    */
   async getCurrentUser(): Promise<ApiResponse<UserProfile | null>> {
     return apiClient.get<UserProfile | null>('auth/user/', null);
