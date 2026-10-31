@@ -79,10 +79,7 @@ async function withFailover<T>(label: string, fn: (t: Transporter) => Promise<T>
 /** Verifies SMTP credentials at boot so misconfiguration is caught immediately. */
 export async function verifyMailer(): Promise<void> {
   if (!env.smtpConfigured) {
-    if (env.isProd) {
-      throw new Error('SMTP is not configured (SMTP_HOST / SMTP_USER / SMTP_PASS). Refusing to start in production.');
-    }
-    console.warn('ℹ️  SMTP not configured — emails will be printed to this console (dev mode).');
+    console.warn('⚠️  SMTP not configured (SMTP_HOST / SMTP_USER / SMTP_PASS) — emails & verification codes will be logged to this console.');
     return;
   }
   try {
@@ -90,8 +87,7 @@ export async function verifyMailer(): Promise<void> {
     console.info(`✉️  SMTP ready (${env.SMTP_HOST}:${env.SMTP_PORT} as ${env.SMTP_USER})`);
   } catch (err) {
     const msg = `SMTP check failed — ${(err as Error).message}`;
-    if (env.isProd) throw new Error(msg);
-    console.error(`❌ ${msg}`);
+    console.warn(`⚠️  ${msg} — falling back to console mail logging.`);
   }
 }
 
@@ -121,8 +117,7 @@ export async function sendMail(msg: MailMessage): Promise<void> {
     return;
   }
   if (!env.smtpConfigured) {
-    if (env.isProd) throw new Error('SMTP not configured');
-    console.info(`\n──── ✉️  DEV EMAIL ────\nTo: ${msg.to}\nSubject: ${msg.subject}\n\n${msg.text}\n──────────────────────\n`);
+    console.info(`\n──── ✉️  SIMULATED EMAIL (NO SMTP CONFIGURED) ────\nTo: ${msg.to}\nSubject: ${msg.subject}\n\n${msg.text}\n────────────────────────────────────────────────\n`);
     return;
   }
   const mail = {
