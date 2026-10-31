@@ -182,7 +182,10 @@ export const VendorRegisterPage: React.FC = () => {
           if (res.user) {
             setUser(res.user);
           }
-          navigate('/vendor/verify-otp', { replace: true });
+          navigate('/vendor/verify-otp', {
+            replace: true,
+            state: { devCode: (res as any).dev_code },
+          });
         },
         onError: (err: NormalizedApiError) => {
           if (err.fieldErrors) {

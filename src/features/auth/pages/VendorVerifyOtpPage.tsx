@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Mail,
@@ -79,7 +79,8 @@ export const VendorVerifyOtpPage: React.FC = () => {
   // Destination email string & Gmail detection
   const recipientEmail = statusData?.email?.email || statusData?.email?.masked || 'your email';
   const isGmail = recipientEmail.toLowerCase().includes('@gmail');
-  const devCode = statusData?.email?.dev_code || statusData?.dev_code;
+  const location = useLocation();
+  const devCode = (location.state as any)?.devCode || statusData?.email?.dev_code || statusData?.dev_code;
 
   // Handle Email OTP Verify
   const handleVerifyEmail = (codeToVerify?: string) => {
