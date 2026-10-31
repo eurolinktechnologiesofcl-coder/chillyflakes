@@ -35,6 +35,8 @@ async function candidateAddresses(): Promise<string[]> {
   return good.length ? [host, ...good] : [host, ...ips];
 }
 
+let smtpNetworkReachable: boolean | null = null;
+
 function transportFor(address: string): Transporter {
   let t = transports.get(address);
   if (!t) {
@@ -46,9 +48,9 @@ function transportFor(address: string): Transporter {
       auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
       tls: isHost ? { rejectUnauthorized: false } : { servername: env.SMTP_HOST },
       name: 'chillyflakes-api',
-      connectionTimeout: 5_000,
-      greetingTimeout: 5_000,
-      socketTimeout: 10_000,
+      connectionTimeout: 3_000,
+      greetingTimeout: 3_000,
+      socketTimeout: 5_000,
     });
     transports.set(address, t);
   }
@@ -68,10 +70,11 @@ async function withFailover<T>(label: string, fn: (t: Transporter) => Promise<T>
       lastErr = err;
       const e = err as Error & { code?: string };
       if (!NETWORK_ERROR.test(`${e.code || ''} ${e.message}`)) throw err; // auth/content error — don't retry
-      console.warn(`[mail] ${label}: ${address} unreachable (${e.code || e.message}) — trying next address`);
+      console.warn(`[mail] ${label}: ${address} unreachable (${e.code || e.message})`);
       badIps.set(address, Date.now() + BAD_IP_TTL_MS);
       transports.get(address)?.close();
       transports.delete(address);
+      break; // Stop immediately on port timeout to avoid stalling requests
     }
   }
   throw lastErr;
@@ -79,16 +82,22 @@ async function withFailover<T>(label: string, fn: (t: Transporter) => Promise<T>
 
 /** Verifies SMTP credentials at boot so misconfiguration is caught immediately. */
 export async function verifyMailer(): Promise<void> {
+  if (env.RESEND_API_KEY) {
+    console.info(`✉️  Resend HTTP API enabled for email delivery.`);
+    return;
+  }
   if (!env.smtpConfigured) {
     console.warn('⚠️  SMTP not configured (SMTP_HOST / SMTP_USER / SMTP_PASS) — emails & verification codes will be logged to this console.');
     return;
   }
   try {
     await withFailover('verify', (t) => t.verify());
+    smtpNetworkReachable = true;
     console.info(`✉️  SMTP ready (${env.SMTP_HOST}:${env.SMTP_PORT} as ${env.SMTP_USER})`);
   } catch (err) {
+    smtpNetworkReachable = false;
     const msg = `SMTP check failed — ${(err as Error).message}`;
-    console.warn(`⚠️  ${msg} — falling back to console mail logging.`);
+    console.warn(`⚠️  ${msg} — host network appears to block outbound SMTP ports. Emails will be logged to console & exposed via dev_code.`);
   }
 }
 
@@ -117,10 +126,42 @@ export async function sendMail(msg: MailMessage): Promise<void> {
     console.info(`[mail] skipped (test/fake address) "${msg.subject}" → ${msg.to}`);
     return;
   }
-  if (!env.smtpConfigured) {
-    console.info(`\n──── ✉️  SIMULATED EMAIL (NO SMTP CONFIGURED) ────\nTo: ${msg.to}\nSubject: ${msg.subject}\n\n${msg.text}\n────────────────────────────────────────────────\n`);
+
+  // 1. If Resend API Key is provided, use HTTPS (Port 443 — guaranteed to pass cloud firewalls)
+  if (env.RESEND_API_KEY) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: env.MAIL_FROM || `${env.APP_NAME} <onboarding@resend.dev>`,
+          to: [msg.to],
+          subject: msg.subject,
+          html: msg.html,
+          text: msg.text,
+        }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { id?: string };
+        console.info(`[mail:resend] sent "${msg.subject}" → ${msg.to} (${data.id})`);
+        return;
+      }
+      const errText = await res.text();
+      console.warn(`[mail:resend] API error: ${errText}`);
+    } catch (httpErr) {
+      console.warn(`[mail:resend] HTTP fetch error: ${(httpErr as Error).message}`);
+    }
+  }
+
+  // 2. If SMTP is not configured or host has blocked SMTP network ports
+  if (!env.smtpConfigured || smtpNetworkReachable === false) {
+    console.info(`\n──── ✉️  SIMULATED EMAIL (${smtpNetworkReachable === false ? 'OUTBOUND SMTP BLOCKED BY HOST' : 'NO SMTP CONFIGURED'}) ────\nTo: ${msg.to}\nSubject: ${msg.subject}\n\n${msg.text}\n────────────────────────────────────────────────\n`);
     return;
   }
+
   const mail = {
     from: env.MAIL_FROM || `${env.APP_NAME} <${env.SMTP_USER}>`,
     replyTo: msg.replyTo || env.SUPPORT_EMAIL || undefined,
@@ -130,19 +171,17 @@ export async function sendMail(msg: MailMessage): Promise<void> {
     text: msg.text,
   };
 
-  // Two full passes over all addresses before giving up
-  for (let pass = 1; pass <= 2; pass++) {
-    try {
-      const info = await withFailover('send', (t) => t.sendMail(mail));
-      console.info(`[mail] sent "${msg.subject}" → ${msg.to} (${info.messageId})`);
-      return;
-    } catch (err) {
-      const e = err as Error & { code?: string };
-      if (pass === 2 || !NETWORK_ERROR.test(`${e.code || ''} ${e.message}`)) {
-        console.error(`[mail] delivery failed: ${e.code || ''} ${e.message}`);
-        throw err;
-      }
-      await new Promise((r) => setTimeout(r, 1500));
+  try {
+    const info = await withFailover('send', (t) => t.sendMail(mail));
+    smtpNetworkReachable = true;
+    console.info(`[mail] sent "${msg.subject}" → ${msg.to} (${info.messageId})`);
+    return;
+  } catch (err) {
+    const e = err as Error & { code?: string };
+    if (NETWORK_ERROR.test(`${e.code || ''} ${e.message}`)) {
+      smtpNetworkReachable = false;
     }
+    console.error(`[mail] delivery failed: ${e.code || ''} ${e.message}`);
+    throw err;
   }
 }
