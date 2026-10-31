@@ -32,6 +32,9 @@ const schema = z.object({
   /** Resend API Key for HTTP-based email delivery (works around Render free tier SMTP blocks) */
   RESEND_API_KEY: z.string().optional(),
 
+  /** Brevo (Sendinblue) API Key for HTTP-based email delivery (Port 443) */
+  BREVO_API_KEY: z.string().optional(),
+
   /** Return one-time codes in API responses (local testing only). Ignored in production. */
   EXPOSE_DEV_CODES: bool,
 });
@@ -46,6 +49,6 @@ export const env = {
   ...parsed.data,
   isProd: parsed.data.NODE_ENV === 'production',
   corsOrigins: parsed.data.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
-  smtpConfigured: Boolean(parsed.data.RESEND_API_KEY || (parsed.data.SMTP_HOST && parsed.data.SMTP_USER && parsed.data.SMTP_PASS)),
-  exposeDevCodes: Boolean(parsed.data.EXPOSE_DEV_CODES) || !Boolean(parsed.data.RESEND_API_KEY || (parsed.data.SMTP_HOST && parsed.data.SMTP_USER && parsed.data.SMTP_PASS)) || parsed.data.NODE_ENV !== 'production',
+  smtpConfigured: Boolean(parsed.data.RESEND_API_KEY || parsed.data.BREVO_API_KEY || (parsed.data.SMTP_HOST && parsed.data.SMTP_USER && parsed.data.SMTP_PASS)),
+  exposeDevCodes: Boolean(parsed.data.EXPOSE_DEV_CODES) || !Boolean(parsed.data.RESEND_API_KEY || parsed.data.BREVO_API_KEY || (parsed.data.SMTP_HOST && parsed.data.SMTP_USER && parsed.data.SMTP_PASS)) || parsed.data.NODE_ENV !== 'production',
 };

@@ -156,7 +156,37 @@ export async function sendMail(msg: MailMessage): Promise<void> {
     }
   }
 
-  // 2. If SMTP is not configured or host has blocked SMTP network ports
+  // 2. If Brevo (Sendinblue) API Key is provided, use HTTPS (Port 443)
+  if (env.BREVO_API_KEY) {
+    try {
+      const senderEmail = env.SMTP_USER || env.SUPPORT_EMAIL || 'adityashvkmr@gmail.com';
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': env.BREVO_API_KEY,
+        },
+        body: JSON.stringify({
+          sender: { name: env.APP_NAME || 'ChillyFlakes', email: senderEmail },
+          to: [{ email: msg.to }],
+          subject: msg.subject,
+          htmlContent: msg.html,
+          textContent: msg.text,
+        }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { messageId?: string };
+        console.info(`[mail:brevo] sent "${msg.subject}" → ${msg.to} (${data.messageId})`);
+        return;
+      }
+      const errText = await res.text();
+      console.warn(`[mail:brevo] API error: ${errText}`);
+    } catch (httpErr) {
+      console.warn(`[mail:brevo] HTTP fetch error: ${(httpErr as Error).message}`);
+    }
+  }
+
+  // 3. If SMTP is not configured or host has blocked SMTP network ports
   if (!env.smtpConfigured || smtpNetworkReachable === false) {
     console.info(`\n──── ✉️  SIMULATED EMAIL (${smtpNetworkReachable === false ? 'OUTBOUND SMTP BLOCKED BY HOST' : 'NO SMTP CONFIGURED'}) ────\nTo: ${msg.to}\nSubject: ${msg.subject}\n\n${msg.text}\n────────────────────────────────────────────────\n`);
     return;
@@ -185,3 +215,16 @@ export async function sendMail(msg: MailMessage): Promise<void> {
     throw err;
   }
 }
+
+export function getMailDiagnostics() {
+  return {
+    resendConfigured: Boolean(env.RESEND_API_KEY),
+    brevoConfigured: Boolean(env.BREVO_API_KEY),
+    smtpConfigured: Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS),
+    smtpHost: env.SMTP_HOST || null,
+    smtpPort: env.SMTP_PORT,
+    smtpUser: env.SMTP_USER ? env.SMTP_USER.slice(0, 3) + '***' : null,
+    smtpNetworkReachable,
+  };
+}
+

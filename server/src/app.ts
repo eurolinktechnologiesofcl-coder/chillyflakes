@@ -8,6 +8,7 @@ import { prisma } from './lib/prisma.js';
 import { randomToken } from './lib/crypto.js';
 import { errorHandler, notFoundHandler } from './lib/errors.js';
 import { apiLimiter } from './middleware/rateLimit.js';
+import { getMailDiagnostics } from './lib/mailer.js';
 
 // Routers
 import { buyerAuthRouter } from './modules/auth/buyer.routes.js';
@@ -70,9 +71,18 @@ export function createApp() {
   app.get('/health', async (_req, res) => {
     try {
       await prisma.$queryRaw`SELECT 1`;
-      res.json({ status: 'ok', db: 'up', time: new Date().toISOString() });
+      res.json({
+        status: 'ok',
+        db: 'up',
+        time: new Date().toISOString(),
+        mail: getMailDiagnostics(),
+      });
     } catch {
-      res.status(503).json({ status: 'degraded', db: 'down' });
+      res.status(503).json({
+        status: 'degraded',
+        db: 'down',
+        mail: getMailDiagnostics(),
+      });
     }
   });
 
