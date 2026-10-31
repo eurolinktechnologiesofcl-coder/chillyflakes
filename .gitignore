@@ -27,3 +27,4 @@ uploads/*
 *.njsproj
 *.sln
 *.sw?
+.neon

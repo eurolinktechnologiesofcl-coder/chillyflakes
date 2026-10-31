@@ -2102,7 +2102,7 @@ vendorRouter.post('/support/tickets/', requireAuth('VENDOR'), async (req, res) =
   setImmediate(async () => {
     try {
       const admins = await prisma.user.findMany({
-        where: { role: { in: [UserRole.SUPER_ADMIN, UserRole.ADMIN] } },
+        where: { role: UserRole.ADMIN },
         select: { email: true },
       });
       const recipientEmails = Array.from(
@@ -2115,11 +2115,13 @@ vendorRouter.post('/support/tickets/', requireAuth('VENDOR'), async (req, res) =
       for (const to of recipientEmails) {
         await sendMail({
           to,
-          subject: `🚨 [Support Ticket - ${priority.toUpperCase()}] #${ticket.ticketNumber} from ${v.storeName}`,
-          html: supportTicketAdminNotificationTemplate({
+          ...supportTicketAdminNotificationTemplate({
             ticketNumber: ticket.ticketNumber,
-            vendorName: v.storeName,
+            vendorStoreName: v.storeName,
+            vendorLegalName: v.legalName || undefined,
+            vendorEmail: v.user?.email || undefined,
             subject: ticket.subject,
+            category: ticket.category,
             priority: ticket.priority,
             message,
           }),
