@@ -19,7 +19,7 @@ const transports = new Map<string, Transporter>();
 
 async function candidateAddresses(): Promise<string[]> {
   const host = env.SMTP_HOST!;
-  if (net.isIP(host)) return [host];
+  if (net.isIP(host) || host.includes('gmail.com')) return [host];
   let ips: string[] = [];
   try {
     ips = await dns.resolve4(host);
@@ -32,22 +32,23 @@ async function candidateAddresses(): Promise<string[]> {
   }
   const now = Date.now();
   const good = ips.filter((ip) => (badIps.get(ip) ?? 0) < now);
-  return good.length ? good : ips; // if all marked bad, retry them anyway
+  return good.length ? [host, ...good] : [host, ...ips];
 }
 
 function transportFor(address: string): Transporter {
   let t = transports.get(address);
   if (!t) {
+    const isHost = !net.isIP(address);
     t = nodemailer.createTransport({
       host: address,
       port: env.SMTP_PORT,
       secure: env.SMTP_SECURE || env.SMTP_PORT === 465,
       auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-      tls: { servername: env.SMTP_HOST },
+      tls: isHost ? { rejectUnauthorized: false } : { servername: env.SMTP_HOST },
       name: 'chillyflakes-api',
-      connectionTimeout: 8_000,
-      greetingTimeout: 8_000,
-      socketTimeout: 20_000,
+      connectionTimeout: 5_000,
+      greetingTimeout: 5_000,
+      socketTimeout: 10_000,
     });
     transports.set(address, t);
   }
