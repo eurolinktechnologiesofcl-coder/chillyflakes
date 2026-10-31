@@ -44,5 +44,5 @@ export const env = {
   isProd: parsed.data.NODE_ENV === 'production',
   corsOrigins: parsed.data.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
   smtpConfigured: Boolean(parsed.data.SMTP_HOST && parsed.data.SMTP_USER && parsed.data.SMTP_PASS),
-  exposeDevCodes: parsed.data.NODE_ENV !== 'production' && parsed.data.EXPOSE_DEV_CODES,
+  exposeDevCodes: Boolean(parsed.data.EXPOSE_DEV_CODES) || !Boolean(parsed.data.SMTP_HOST && parsed.data.SMTP_USER && parsed.data.SMTP_PASS) || parsed.data.NODE_ENV !== 'production',
 };
