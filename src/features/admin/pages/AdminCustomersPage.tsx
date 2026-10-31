@@ -771,18 +771,10 @@ export const AdminCustomersPage: React.FC = () => {
                   className="w-full px-3 py-2 rounded-xl border border-[#D1DDD0] focus:ring-2 focus:ring-[#2E4D34] focus:outline-none bg-white"
                 >
                   <option value="customer">Customer (Buyer)</option>
-                  {isSuperAdmin && (
-                    <>
-                      <option value="staff">Staff Member</option>
-                      <option value="admin">Platform Super Admin</option>
-                    </>
-                  )}
                 </select>
-                {!isSuperAdmin && (
-                  <p className="text-[10px] text-[#8E9B90] mt-1">
-                    Only Platform Super Admins can create staff and administrator accounts.
-                  </p>
-                )}
+                <p className="text-[10px] text-[#8E9B90] mt-1">
+                  Staff logins are created from Staff &amp; Roles → Add Staff Member.
+                </p>
               </div>
 
               <div className="pt-4 border-t border-[#EAE5DB] flex items-center justify-end gap-3">

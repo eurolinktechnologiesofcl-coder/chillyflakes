@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 .env
+.pgdata
+scratch/
+uploads/*
+!uploads/.gitkeep
 
 # Editor directories and files
 .vscode/*

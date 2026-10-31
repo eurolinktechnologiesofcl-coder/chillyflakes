@@ -1,11 +1,14 @@
-import { apiClient, type ApiResponse } from './client';
+import { axiosClient, type ApiResponse } from './client';
 import { servicesData, type ServiceItem } from '../components/ServicesSection';
+import type { BuyerBooking } from '../types';
 
 export interface BookingRequest {
-  serviceId: string;
-  serviceTitle?: string;
+  serviceId?: string;
+  serviceTitle: string;
   userName: string;
   userContact: string;
+  customerEmail?: string;
+  customerPhone?: string;
   preferredDate: string;
   preferredTime: string;
   notes?: string;
@@ -18,48 +21,70 @@ export interface BookingResponse {
   bookingRef: string;
 }
 
-/**
- * Services API Service
- * Maps to backend endpoints:
- * - GET  /api/services/
- * - GET  /api/services/:id/
- * - POST /api/services/bookings/
- */
 export const servicesApi = {
   /**
    * Fetch list of available community services with optional category filtering.
    */
   async getServices(category?: string): Promise<ApiResponse<ServiceItem[]>> {
     const endpoint = category && category !== 'All' 
-      ? `services/?category=${encodeURIComponent(category)}`
-      : 'services/';
+      ? `/api/v1/services/?category=${encodeURIComponent(category)}`
+      : '/api/v1/services/';
 
-    const fallback = category && category !== 'All'
-      ? servicesData.filter((s) => s.category.toLowerCase() === category.toLowerCase())
-      : servicesData;
-
-    return apiClient.get<ServiceItem[]>(endpoint, fallback);
+    try {
+      const res = await axiosClient.get(endpoint);
+      return { data: res.data, status: res.status, isMock: false };
+    } catch {
+      const filtered = category && category !== 'All'
+        ? servicesData.filter((s) => s.category.toLowerCase() === category.toLowerCase())
+        : servicesData;
+      return { data: filtered, status: 200, isMock: true };
+    }
   },
 
   /**
    * Fetch single service detail by ID.
    */
   async getServiceById(id: string): Promise<ApiResponse<ServiceItem | null>> {
-    const fallback = servicesData.find((s) => s.id === id) || null;
-    return apiClient.get<ServiceItem | null>(`services/${id}/`, fallback);
+    try {
+      const res = await axiosClient.get(`/api/v1/services/${id}/`);
+      return { data: res.data, status: res.status, isMock: false };
+    } catch {
+      const found = servicesData.find((s) => s.id === id) || null;
+      return { data: found, status: found ? 200 : 404, isMock: true };
+    }
   },
 
   /**
    * Submit a service booking request to the backend.
    */
   async createBooking(booking: BookingRequest): Promise<ApiResponse<BookingResponse>> {
-    const fallback: BookingResponse = {
-      id: `booking-${Date.now()}`,
-      status: 'confirmed',
-      message: 'Booking request registered successfully.',
-      bookingRef: `CF-${Math.floor(100000 + Math.random() * 900000)}`,
-    };
+    const res = await axiosClient.post<BookingResponse>('/api/v1/services/bookings/', booking);
+    return { data: res.data, status: res.status, isMock: false };
+  },
 
-    return apiClient.post<BookingResponse>('services/bookings/', booking, fallback);
+  /**
+   * Cancel an existing service booking appointment.
+   */
+  async cancelBooking(bookingId: string, reason?: string, email?: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    const res = await axiosClient.post(`/api/v1/services/bookings/${encodeURIComponent(bookingId)}/cancel/`, { reason, email });
+    return { data: res.data, status: res.status, isMock: false };
+  },
+
+  /**
+   * Fetch buyer's service bookings from the backend database.
+   */
+  async getMyBookings(email?: string): Promise<ApiResponse<BuyerBooking[]>> {
+    try {
+      const res = await axiosClient.get('/api/v1/services/bookings/', {
+        params: email ? { email } : undefined,
+      });
+      const list = Array.isArray(res.data)
+        ? res.data
+        : (Array.isArray(res.data?.bookings) ? res.data.bookings : []);
+      return { data: list, status: res.status, isMock: false };
+    } catch {
+      return { data: [], status: 500, isMock: true };
+    }
   },
 };
+

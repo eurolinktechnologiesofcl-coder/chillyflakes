@@ -183,13 +183,13 @@ export const VendorProductsPage: React.FC = () => {
   };
 
   const statusTabs: { id: string; label: string; count: number }[] = [
-    { id: 'all', label: t('vendorProducts.tabAll', 'All'), count: data?.status_counts.all ?? 0 },
-    { id: 'approved', label: t('vendorProducts.tabApproved', 'Live'), count: data?.status_counts.approved ?? 0 },
-    { id: 'pending_review', label: t('vendorProducts.tabPendingReview', 'Under Review'), count: data?.status_counts.pending_review ?? 0 },
-    { id: 'draft', label: t('vendorProducts.tabDraft', 'Drafts'), count: data?.status_counts.draft ?? 0 },
-    { id: 'rejected', label: t('vendorProducts.tabRejected', 'Rejected'), count: data?.status_counts.rejected ?? 0 },
-    { id: 'unpublished', label: t('vendorProducts.tabUnpublished', 'Unpublished'), count: data?.status_counts.unpublished ?? 0 },
-    { id: 'archived', label: t('vendorProducts.tabArchived', 'Archived'), count: data?.status_counts.archived ?? 0 },
+    { id: 'all', label: t('vendorProducts.tabAll', 'All'), count: data?.status_counts?.all ?? 0 },
+    { id: 'approved', label: t('vendorProducts.tabApproved', 'Live'), count: data?.status_counts?.approved ?? 0 },
+    { id: 'pending_review', label: t('vendorProducts.tabPendingReview', 'Under Review'), count: data?.status_counts?.pending_review ?? 0 },
+    { id: 'draft', label: t('vendorProducts.tabDraft', 'Drafts'), count: data?.status_counts?.draft ?? 0 },
+    { id: 'rejected', label: t('vendorProducts.tabRejected', 'Rejected'), count: data?.status_counts?.rejected ?? 0 },
+    { id: 'unpublished', label: t('vendorProducts.tabUnpublished', 'Unpublished'), count: data?.status_counts?.unpublished ?? 0 },
+    { id: 'archived', label: t('vendorProducts.tabArchived', 'Archived'), count: data?.status_counts?.archived ?? 0 },
   ];
 
   return (

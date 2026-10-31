@@ -9,14 +9,12 @@ import {
   Wallet,
   Star,
   Store,
-  Settings,
   HelpCircle,
   Bell,
   Menu,
   X,
   LogOut,
   ChevronDown,
-  CheckCircle2,
   AlertTriangle,
   Info,
 } from 'lucide-react';
@@ -26,6 +24,8 @@ import { LanguageSwitcher } from '../components/ui/LanguageSwitcher';
 import { useAuth } from '../hooks/useAuth';
 import { ToastProvider } from '../components/vendor/Toast';
 import { DemoBanner } from '../components/DemoBanner';
+import { useQuery } from '@tanstack/react-query';
+import { getVendorNotifications, type VendorAlertItem } from '../api/vendorPortalApi';
 
 export const VendorLayout: React.FC = () => {
   const { t } = useTranslation();
@@ -80,7 +80,21 @@ export const VendorLayout: React.FC = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [mobileDrawerOpen]);
 
-  // Menu items list
+  // Live vendor notifications
+  const { data: notifData } = useQuery<{
+    count: number;
+    unread_count: number;
+    results: VendorAlertItem[];
+  }>({
+    queryKey: ['vendor-notifications'],
+    queryFn: getVendorNotifications,
+    refetchInterval: 15000,
+  });
+
+  const alerts = notifData?.results || [];
+  const alertCount = notifData?.unread_count ?? alerts.length;
+
+  // Menu items list (Settings removed)
   const navItems = [
     { label: t('vendorNav.dashboard', 'Dashboard'), path: '/vendor/dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
     { label: t('vendorNav.products', 'Products'), path: '/vendor/products', icon: <Package className="w-4 h-4" /> },
@@ -89,33 +103,7 @@ export const VendorLayout: React.FC = () => {
     { label: t('vendorNav.earnings', 'Earnings'), path: '/vendor/earnings', icon: <Wallet className="w-4 h-4" /> },
     { label: t('vendorNav.reviews', 'Reviews'), path: '/vendor/reviews', icon: <Star className="w-4 h-4" /> },
     { label: t('vendorNav.profile', 'Store Profile'), path: '/vendor/profile', icon: <Store className="w-4 h-4" /> },
-    { label: t('vendorNav.settings', 'Settings'), path: '/vendor/settings', icon: <Settings className="w-4 h-4" /> },
     { label: t('vendorNav.support', 'Support'), path: '/vendor/support', icon: <HelpCircle className="w-4 h-4" /> },
-  ];
-
-  // Mock topbar alerts
-  const mockAlerts = [
-    {
-      id: '1',
-      title: 'Weekly Payout Initiated',
-      desc: '₹37,300 sent to your verified bank account.',
-      time: '1h ago',
-      icon: <CheckCircle2 className="w-4 h-4 text-[#2E4D34]" />,
-    },
-    {
-      id: '2',
-      title: 'New Workshop Booking',
-      desc: '2 seats reserved for Natural Terracotta Art.',
-      time: '4h ago',
-      icon: <Info className="w-4 h-4 text-[#1D63B8]" />,
-    },
-    {
-      id: '3',
-      title: 'Low Stock Alert',
-      desc: '4 products have low inventory levels.',
-      time: '1d ago',
-      icon: <AlertTriangle className="w-4 h-4 text-[#8A5A00]" />,
-    },
   ];
 
   // Derive page title for topbar
@@ -309,9 +297,11 @@ export const VendorLayout: React.FC = () => {
                   aria-expanded={notificationsOpen}
                 >
                   <Bell className="w-4 h-4" />
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#E29D38] text-white text-[10px] font-bold flex items-center justify-center">
-                    3
-                  </span>
+                  {alertCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#E29D38] text-white text-[10px] font-bold flex items-center justify-center">
+                      {alertCount}
+                    </span>
+                  )}
                 </button>
 
                 {/* Notifications Dropdown */}
@@ -321,31 +311,51 @@ export const VendorLayout: React.FC = () => {
                       <span className="text-xs font-bold text-[#223B28]">
                         Notifications
                       </span>
-                      <span className="text-[10px] font-semibold text-[#2E4D34] bg-[#EAF1EA] px-2 py-0.5 rounded-full">
-                        3 new
-                      </span>
+                      {alertCount > 0 ? (
+                        <span className="text-[10px] font-semibold text-[#2E4D34] bg-[#EAF1EA] px-2 py-0.5 rounded-full">
+                          {alertCount} new
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-[#8E9B90]">All caught up</span>
+                      )}
                     </div>
 
                     <div className="divide-y divide-[#EAE5DB]/60 max-h-72 overflow-y-auto">
-                      {mockAlerts.map((alert) => (
-                        <div
-                          key={alert.id}
-                          className="p-3.5 hover:bg-[#FAF7F2] transition-colors flex items-start gap-3 text-left"
-                        >
-                          <div className="mt-0.5 flex-shrink-0">{alert.icon}</div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold text-[#223B28]">
-                              {alert.title}
-                            </p>
-                            <p className="text-[11px] text-[#637365] mt-0.5 leading-snug">
-                              {alert.desc}
-                            </p>
-                            <span className="text-[10px] text-[#8E9B90] mt-1 block">
-                              {alert.time}
-                            </span>
-                          </div>
+                      {alerts.length === 0 ? (
+                        <div className="p-6 text-center text-xs text-[#8E9B90]">
+                          No notifications at this time.
                         </div>
-                      ))}
+                      ) : (
+                        alerts.map((alert) => (
+                          <Link
+                            key={alert.id}
+                            to={alert.link}
+                            onClick={() => setNotificationsOpen(false)}
+                            className="p-3.5 hover:bg-[#FAF7F2] transition-colors flex items-start gap-3 text-left block"
+                          >
+                            <div className="mt-0.5 flex-shrink-0">
+                              {alert.type === 'order' && <ShoppingBag className="w-4 h-4 text-[#2E4D34]" />}
+                              {alert.type === 'booking' && <Calendar className="w-4 h-4 text-[#1D63B8]" />}
+                              {alert.type === 'stock' && <AlertTriangle className="w-4 h-4 text-[#8A5A00]" />}
+                              {alert.type === 'support' && <HelpCircle className="w-4 h-4 text-[#9E2A2B]" />}
+                              {alert.type !== 'order' && alert.type !== 'booking' && alert.type !== 'stock' && alert.type !== 'support' && (
+                                <Info className="w-4 h-4 text-[#2E4D34]" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-[#223B28]">
+                                {alert.title}
+                              </p>
+                              <p className="text-[11px] text-[#637365] mt-0.5 leading-snug">
+                                {alert.desc}
+                              </p>
+                              <span className="text-[10px] text-[#8E9B90] mt-1 block">
+                                {alert.time}
+                              </span>
+                            </div>
+                          </Link>
+                        ))
+                      )}
                     </div>
                   </div>
                 )}
@@ -392,14 +402,6 @@ export const VendorLayout: React.FC = () => {
                     >
                       <Store className="w-3.5 h-3.5 text-[#8E9B90]" />
                       <span>Store Profile</span>
-                    </Link>
-
-                    <Link
-                      to="/vendor/settings"
-                      className="flex items-center gap-2.5 px-4 py-2 text-[#5F6D61] hover:text-[#223B28] hover:bg-[#FAF7F2] transition-colors"
-                    >
-                      <Settings className="w-3.5 h-3.5 text-[#8E9B90]" />
-                      <span>Settings</span>
                     </Link>
 
                     <div className="my-1 border-t border-[#EAE5DB]" />

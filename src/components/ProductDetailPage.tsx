@@ -341,14 +341,18 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
               {/* Ratings and Reviews Strip */}
               <div className="flex flex-wrap items-center gap-3 pb-2 border-b border-[#ECE7DD]">
-                <div className="inline-flex items-center gap-1 bg-[#203D26] text-white text-xs font-bold px-2.5 py-1 rounded-md shadow-2xs">
-                  <span>{product.rating.toFixed(1)}</span>
-                  <Star className="w-3.5 h-3.5 fill-current text-[#FBBF24]" />
-                </div>
-                <span className="text-xs sm:text-sm font-medium text-[#6C7B6D]">
-                  {product.reviewsCount} Ratings & {Math.max(4, Math.floor(product.reviewsCount * 0.75))} Verified Reviews
-                </span>
-                <span className="text-[#C5D0C3]">|</span>
+                {Boolean(product.rating && product.rating > 0 && product.reviewsCount && product.reviewsCount > 0) ? (
+                  <>
+                    <div className="inline-flex items-center gap-1 bg-[#203D26] text-white text-xs font-bold px-2.5 py-1 rounded-md shadow-2xs">
+                      <span>{product.rating.toFixed(1)}</span>
+                      <Star className="w-3.5 h-3.5 fill-current text-[#FBBF24]" />
+                    </div>
+                    <span className="text-xs sm:text-sm font-medium text-[#6C7B6D]">
+                      {product.reviewsCount} Ratings & {Math.max(4, Math.floor(product.reviewsCount * 0.75))} Verified Reviews
+                    </span>
+                    <span className="text-[#C5D0C3]">|</span>
+                  </>
+                ) : null}
                 <span className="inline-flex items-center gap-1 text-xs font-medium text-[#2D4F32]">
                   <Check className="w-3.5 h-3.5" />
                   ChillyFlakes Assured
@@ -571,10 +575,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 />
 
                 {/* Rating Badge */}
-                <div className="absolute bottom-2 left-2 bg-[#203D26]/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
-                  <span>{relProduct.rating.toFixed(1)}</span>
-                  <Star className="w-2.5 h-2.5 fill-current text-[#FBBF24]" />
-                </div>
+                {Boolean(relProduct.rating && relProduct.rating > 0) && (
+                  <div className="absolute bottom-2 left-2 bg-[#203D26]/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
+                    <span>{relProduct.rating.toFixed(1)}</span>
+                    <Star className="w-2.5 h-2.5 fill-current text-[#FBBF24]" />
+                  </div>
+                )}
 
                 {relProduct.discount > 0 && (
                   <span className="absolute top-2 right-2 bg-[#7B3F1B] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-2xs">

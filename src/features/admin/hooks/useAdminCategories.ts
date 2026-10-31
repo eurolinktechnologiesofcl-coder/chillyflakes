@@ -53,10 +53,23 @@ export function useAdminCategories() {
     onSuccess: invalidateCategories,
   });
 
+  const deleteCategoryMutation = useMutation<
+    { success: boolean; message: string },
+    NormalizedApiError,
+    string
+  >({
+    mutationFn: (id: string) => {
+      // dynamic import or imported
+      return import('../../../api/adminCategories').then((m) => m.deleteAdminCategory(id));
+    },
+    onSuccess: invalidateCategories,
+  });
+
   return {
     ...categoriesQuery,
     createCategoryMutation,
     updateCategoryMutation,
     addSubcategoryMutation,
+    deleteCategoryMutation,
   };
 }

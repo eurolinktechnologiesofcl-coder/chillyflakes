@@ -101,10 +101,12 @@ export const WishlistPage: React.FC = () => {
                   </button>
 
                   {/* Rating Badge */}
-                  <div className="absolute bottom-2.5 left-2.5 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
-                    <span>{prod.rating.toFixed(1)}</span>
-                    <Star className="w-2.5 h-2.5 fill-[#FBBF24] text-[#FBBF24]" />
-                  </div>
+                  {Boolean(prod.rating && prod.rating > 0) && (
+                    <div className="absolute bottom-2.5 left-2.5 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span>{prod.rating.toFixed(1)}</span>
+                      <Star className="w-2.5 h-2.5 fill-[#FBBF24] text-[#FBBF24]" />
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-4 flex flex-col flex-grow justify-between">

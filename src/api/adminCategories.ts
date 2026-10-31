@@ -41,3 +41,11 @@ export async function addAdminSubcategory(
   );
   return response.data;
 }
+
+export async function deleteAdminCategory(id: string): Promise<{ success: boolean; message: string }> {
+  const response = await axiosClient.delete<{ success: boolean; message: string }>(
+    `/api/v1/admin/categories/${id}/`
+  );
+  return response.data;
+}
+

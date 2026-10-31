@@ -33,7 +33,7 @@ export const AdminLoginPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       await login(cleanEmail, password);
-      const destination = (location.state as { from?: { pathname: string } })?.from?.pathname || '/admin/product-reviews';
+      const destination = (location.state as { from?: { pathname: string } })?.from?.pathname || '/admin';
       navigate(destination, { replace: true });
     } catch (err: unknown) {
       const errObj = err as { response?: { data?: { message?: string } } };
@@ -130,25 +130,6 @@ export const AdminLoginPage: React.FC = () => {
               Sign In to Admin Console
             </Button>
           </form>
-
-          {/* Quick Mock Credentials Demo Box */}
-          <div className="p-3.5 rounded-2xl bg-[#FAF7F2] border border-[#EAE5DB] text-xs space-y-1">
-            <p className="font-semibold text-[#223B28]">Demo Administrator Account:</p>
-            <div className="flex items-center justify-between text-[#5F6D61] font-mono text-[11px]">
-              <span>admin@test.com</span>
-              <span>Test@123</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setEmail('admin@test.com');
-                setPassword('Test@123');
-              }}
-              className="text-[11px] font-semibold text-[#2E4D34] hover:underline pt-1 block"
-            >
-              Click to autofill demo credentials
-            </button>
-          </div>
         </div>
       </main>
 

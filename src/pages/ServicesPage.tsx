@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { 
@@ -12,33 +12,79 @@ import {
 import { useStore } from '../context/StoreContext';
 import { servicesData, type ServiceItem } from '../components/ServicesSection';
 import { servicesApi } from '../api';
+import { axiosClient } from '../api/client';
 
 export const ServicesPage: React.FC = () => {
-  const { t } = useTranslation();
-  const { addBooking, showToast } = useStore();
+  const { t, i18n } = useTranslation();
+  const { addBooking, showToast, user } = useStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
 
+  const [liveServices, setLiveServices] = useState<ServiceItem[]>(servicesData);
+
+  const loadLiveServices = async () => {
+    try {
+      const res = await axiosClient.get('/api/v1/services/');
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped: ServiceItem[] = res.data.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          subtitle: item.subtitle || (item.category ? `${item.category} Care` : 'Professional Care'),
+          category: (item.category as any) || 'Wellness',
+          description: item.description,
+          duration: item.duration || `${item.duration_min || 60} mins`,
+          price: item.price_display || (typeof item.price === 'number' ? `From ₹${item.price.toLocaleString('en-IN')}` : String(item.price || 'From ₹499')),
+          rating: item.rating ?? 5.0,
+          reviewsCount: item.reviewsCount ?? 25,
+          image: item.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=600&q=80',
+        }));
+        setLiveServices(mapped);
+      }
+    } catch (err) {
+      console.warn('Error loading live services:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadLiveServices();
+    const handleUpdate = () => loadLiveServices();
+    window.addEventListener('cf_services_updated', handleUpdate);
+    return () => window.removeEventListener('cf_services_updated', handleUpdate);
+  }, []);
+
   // Booking Form State
-  const [userName, setUserName] = useState<string>('');
-  const [userContact, setUserContact] = useState<string>('');
+  const [userName, setUserName] = useState<string>(user?.name || '');
+  const [userContact, setUserContact] = useState<string>(user?.email || '');
+  const [userPhone, setUserPhone] = useState<string>(user?.phone || '');
   const [bookingDate, setBookingDate] = useState<string>('');
-  const [bookingTime, setBookingTime] = useState<string>('10:00 AM');
+  const [bookingTime, setBookingTime] = useState<string>('Morning (09:00 AM - 12:00 PM)');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [bookingSuccess, setBookingSuccess] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (user) {
+      if (user.name && !userName) setUserName(user.name);
+      if (user.email && !userContact) setUserContact(user.email);
+      if (user.phone && !userPhone) setUserPhone(user.phone);
+    }
+  }, [user]);
+
   const localizedServices = useMemo(() => {
-    return servicesData.map((s) => ({
-      ...s,
-      title: t(`services.items.${s.id}.title`, s.title),
-      subtitle: t(`services.items.${s.id}.subtitle`, s.subtitle),
-      description: t(`services.items.${s.id}.description`, s.description),
-      duration: t(`services.items.${s.id}.duration`, s.duration),
-      price: t(`services.items.${s.id}.price`, s.price),
-      displayCategory: t(`services.tags.${s.category}`, s.category),
-    }));
-  }, [t]);
+    const isNonEnglish = Boolean(i18n?.language && i18n.language !== 'en');
+    return liveServices.map((s) => {
+      const hasKey = Boolean(s.id && s.id.startsWith('srv-'));
+      return {
+        ...s,
+        title: isNonEnglish && hasKey ? t(`services.items.${s.id}.title`, s.title) : s.title,
+        subtitle: isNonEnglish && hasKey ? t(`services.items.${s.id}.subtitle`, s.subtitle) : (s.subtitle || `${s.category || 'Professional'} Service`),
+        description: isNonEnglish && hasKey ? t(`services.items.${s.id}.description`, s.description) : s.description,
+        duration: s.duration,
+        price: s.price,
+        displayCategory: t(`services.tags.${s.category}`, s.category),
+      };
+    });
+  }, [liveServices, t, i18n?.language]);
 
   const filteredServices = useMemo(() => {
     return localizedServices.filter((s) => {
@@ -58,38 +104,49 @@ export const ServicesPage: React.FC = () => {
   const handleBookService = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedService) return;
+    const customerEmail = userContact.trim();
+    const customerPhone = userPhone.trim();
 
     setIsSubmitting(true);
     try {
-      await servicesApi.createBooking({
+      const res = await servicesApi.createBooking({
         serviceId: selectedService.id,
         serviceTitle: selectedService.title,
         userName,
-        userContact,
+        userContact: customerEmail || customerPhone,
+        customerEmail: customerEmail || undefined,
+        customerPhone: customerPhone || undefined,
         preferredDate: bookingDate,
         preferredTime: bookingTime,
       });
 
-      addBooking({
-        serviceId: selectedService.id,
-        serviceTitle: selectedService.title,
-        userName,
-        userContact,
-        preferredDate: bookingDate,
-        preferredTime: bookingTime,
-        price: selectedService.price,
-      });
+      addBooking(
+        {
+          serviceId: selectedService.id,
+          serviceTitle: selectedService.title,
+          userName,
+          userContact: customerEmail || customerPhone,
+          userPhone: customerPhone || undefined,
+          preferredDate: bookingDate,
+          preferredTime: bookingTime,
+          price: selectedService.price,
+        },
+        res.data?.bookingRef
+      );
 
       setBookingSuccess(true);
+      showToast(res.data?.message || 'Appointment requested successfully! Confirmation email sent.', 'success');
+      window.dispatchEvent(new CustomEvent('cf_service_booked'));
       setTimeout(() => {
         setSelectedService(null);
         setBookingSuccess(false);
-        setUserName('');
-        setUserContact('');
+        setUserName(user?.name || '');
+        setUserContact(user?.email || '');
+        setUserPhone(user?.phone || '');
         setBookingDate('');
       }, 2000);
-    } catch {
-      showToast(t('services.modal.errorMsg', 'Could not schedule appointment. Please try again.'), 'warning');
+    } catch (err: any) {
+      showToast(err.message || t('services.modal.errorMsg', 'Could not schedule appointment. Please try again.'), 'warning');
     } finally {
       setIsSubmitting(false);
     }
@@ -278,30 +335,42 @@ export const ServicesPage: React.FC = () => {
                       value={userName}
                       onChange={(e) => setUserName(e.target.value)}
                       placeholder={t('services.modal.namePlaceholder', 'Your Full Name')}
-                      className="px-3 py-2 text-xs rounded-xl border border-[#D5C9B3] bg-[#FAF7F2]"
+                      className="px-3 py-2 text-xs rounded-xl border border-[#D5C9B3] bg-[#FAF7F2] focus:outline-none focus:border-[#2E4D34]"
                     />
                     <input
-                      type="text"
+                      type="email"
                       required
                       value={userContact}
                       onChange={(e) => setUserContact(e.target.value)}
-                      placeholder={t('services.modal.contactPlaceholder', 'Phone or Email')}
-                      className="px-3 py-2 text-xs rounded-xl border border-[#D5C9B3] bg-[#FAF7F2]"
+                      placeholder={t('services.modal.emailPlaceholder', 'Your Email Address')}
+                      className="px-3 py-2 text-xs rounded-xl border border-[#D5C9B3] bg-[#FAF7F2] focus:outline-none focus:border-[#2E4D34]"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input
+                      type="tel"
+                      required
+                      value={userPhone}
+                      onChange={(e) => setUserPhone(e.target.value)}
+                      placeholder={t('services.modal.phonePlaceholder', 'Your Phone Number (e.g. +91 98765 43210)')}
+                      className="px-3 py-2 text-xs rounded-xl border border-[#D5C9B3] bg-[#FAF7F2] focus:outline-none focus:border-[#2E4D34]"
+                    />
+                    <input
                       type="date"
                       required
+                      min={new Date().toISOString().split('T')[0]}
                       value={bookingDate}
                       onChange={(e) => setBookingDate(e.target.value)}
-                      className="px-3 py-2 text-xs rounded-xl border border-[#D5C9B3] bg-[#FAF7F2]"
+                      className="px-3 py-2 text-xs rounded-xl border border-[#D5C9B3] bg-[#FAF7F2] focus:outline-none focus:border-[#2E4D34]"
                     />
+                  </div>
+
+                  <div>
                     <select
                       value={bookingTime}
                       onChange={(e) => setBookingTime(e.target.value)}
-                      className="px-3 py-2 text-xs rounded-xl border border-[#D5C9B3] bg-[#FAF7F2]"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-[#D5C9B3] bg-[#FAF7F2] focus:outline-none focus:border-[#2E4D34]"
                     >
                       <option>{t('services.modal.slotMorning', 'Morning (09:00 AM - 12:00 PM)')}</option>
                       <option>{t('services.modal.slotAfternoon', 'Afternoon (12:00 PM - 03:00 PM)')}</option>

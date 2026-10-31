@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { 
   Product, 
   CartItem, 
@@ -9,7 +9,25 @@ import type {
   ProductReview 
 } from '../types';
 import { products as initialProducts } from '../data/products';
-import { productsApi, authApi } from '../api';
+import { productsApi, servicesApi } from '../api';
+import { axiosClient } from '../api/client';
+import {
+  syncBuyerCancelToAdmin,
+  syncBuyerReturnToAdmin,
+} from '../utils/platformSync';
+import { useBuyerAuth } from './BuyerAuthContextDef';
+
+const addressKey = (owner: string) => `cf_buyer_addresses:${owner}`;
+
+function loadAddresses(owner: string | null): BuyerAddress[] {
+  if (!owner) return [];
+  try {
+    const saved = localStorage.getItem(addressKey(owner));
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
 
 interface StoreContextType {
   products: Product[];
@@ -47,84 +65,20 @@ interface StoreContextType {
   openProductPage: (product: Product) => void;
   closeProductPage: () => void;
   showToast: (message: string, type?: 'success' | 'info' | 'warning') => void;
-  loginUser: (phoneOrEmail: string, passwordOrOtp?: string) => Promise<boolean>;
   logoutUser: () => Promise<void>;
   addOrder: (order: BuyerOrder) => void;
   cancelOrder: (orderId: string) => void;
+  requestReturn: (orderId: string, reason: string) => void;
   addAddress: (address: Omit<BuyerAddress, 'id'>) => BuyerAddress;
   removeAddress: (id: string) => void;
   setDefaultAddress: (id: string) => void;
-  addBooking: (booking: Omit<BuyerBooking, 'id' | 'createdAt' | 'status'>) => BuyerBooking;
+  addBooking: (booking: Omit<BuyerBooking, 'id' | 'createdAt' | 'status'>, customId?: string) => BuyerBooking;
   cancelBooking: (bookingId: string) => void;
   addProductReview: (review: Omit<ProductReview, 'id' | 'createdAt' | 'verifiedPurchase'>) => void;
   cartCount: number;
   cartTotal: number;
   cartSavings: number;
 }
-
-const defaultAddresses: BuyerAddress[] = [
-  {
-    id: 'addr-default-1',
-    fullName: 'Ananya Sharma',
-    phone: '9876543210',
-    street: 'Flat 402, Green Glen Orchid, Outer Ring Road, Bellandur',
-    landmark: 'Opposite Ecospace Tech Park',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    postalCode: '560103',
-    type: 'Home',
-    isDefault: true,
-  },
-  {
-    id: 'addr-default-2',
-    fullName: 'Ananya Sharma',
-    phone: '9876543210',
-    street: 'Building 7A, 3rd Floor, DLF Cyber City',
-    landmark: 'Near Cyber Hub',
-    city: 'Gurugram',
-    state: 'Haryana',
-    postalCode: '122002',
-    type: 'Work',
-    isDefault: false,
-  }
-];
-
-const initialSampleReviews: Record<string, ProductReview[]> = {
-  'prod-face-cream': [
-    {
-      id: 'rev-1',
-      productId: 'prod-face-cream',
-      userName: 'Priya Nambiar',
-      rating: 5,
-      title: 'Remarkably soothing and completely chemical free',
-      comment: 'I have very sensitive skin and usually react to face creams with artificial fragrances. This botanical cream feels lightweight, smells of pure rosehip and jojoba, and leaves a silky satin finish all day.',
-      createdAt: '2026-10-18',
-      verifiedPurchase: true,
-    },
-    {
-      id: 'rev-2',
-      productId: 'prod-face-cream',
-      userName: 'Rahul Deshmukh',
-      rating: 5,
-      title: 'Authentic handmade quality in amber glass',
-      comment: 'Packaging arrived in a sturdy eco-cushioned box with zero plastic. Highly recommended for daily morning routine.',
-      createdAt: '2026-10-12',
-      verifiedPurchase: true,
-    }
-  ],
-  'prod-lavender-soap': [
-    {
-      id: 'rev-3',
-      productId: 'prod-lavender-soap',
-      userName: 'Meera Iyer',
-      rating: 5,
-      title: 'Gentle creamy lather with natural lavender buds',
-      comment: 'Long lasting bar that doesn’t turn mushy. The natural essential oils make the entire bathroom smell like a spa.',
-      createdAt: '2026-10-20',
-      verifiedPurchase: true,
-    }
-  ]
-};
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
@@ -136,89 +90,93 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem('fk_cart');
-      return saved ? JSON.parse(saved) : [{ product: initialProducts[0], quantity: 1 }];
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return [{ product: initialProducts[0], quantity: 1 }];
+      return [];
     }
   });
 
   const [wishlist, setWishlist] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('fk_wishlist');
-      return saved ? JSON.parse(saved) : ['prod-face-cream', 'prod-moonstone-necklace'];
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return ['prod-face-cream', 'prod-moonstone-necklace'];
+      return [];
     }
   });
 
-  const [orders, setOrders] = useState<BuyerOrder[]>(() => {
+  const [allOrders, setOrders] = useState<BuyerOrder[]>(() => {
     try {
       const saved = localStorage.getItem('cf_buyer_orders');
       if (saved) return JSON.parse(saved);
     } catch {
       // ignore
     }
-    // Default sample past order so buyer dashboard has realistic data
-    return [
-      {
-        id: 'CF-842918',
-        createdAt: '2026-10-24T10:30:00Z',
-        status: 'Processing',
-        items: [
-          { product: initialProducts[0], quantity: 1 },
-          { product: initialProducts[1], quantity: 2 }
-        ],
-        subtotal: 1697,
-        discountAmount: 170,
-        deliveryCharge: 0,
-        totalAmount: 1527,
-        shippingAddress: defaultAddresses[0],
-        paymentMethod: 'upi',
-        paymentId: 'upi_ref_9824021',
-        deliverySpeed: 'standard',
-        estimatedDeliveryDate: '2026-10-29'
-      }
-    ];
+    return [];
   });
 
-  const [addresses, setAddresses] = useState<BuyerAddress[]>(() => {
-    try {
-      const saved = localStorage.getItem('cf_buyer_addresses');
-      return saved ? JSON.parse(saved) : defaultAddresses;
-    } catch {
-      return defaultAddresses;
-    }
-  });
+  // Authenticated shopper (real session from BuyerAuthProvider)
+  const auth = useBuyerAuth();
+  const authUser = auth.user;
+  const user = useMemo(
+    () =>
+      authUser
+        ? { name: authUser.name, email: authUser.email, phone: authUser.phone, isLoggedIn: true }
+        : null,
+    [authUser]
+  );
+  const ownerKey = authUser?.email ?? null;
 
-  const [bookings, setBookings] = useState<BuyerBooking[]>(() => {
+  // Saved addresses are scoped to the signed-in account
+  const [addrState, setAddrState] = useState<{ owner: string | null; list: BuyerAddress[] }>(() => ({
+    owner: ownerKey,
+    list: loadAddresses(ownerKey),
+  }));
+  if (addrState.owner !== ownerKey) {
+    setAddrState({ owner: ownerKey, list: loadAddresses(ownerKey) });
+  }
+  const addresses = addrState.owner === ownerKey ? addrState.list : [];
+  const setAddresses = (updater: (prev: BuyerAddress[]) => BuyerAddress[]) =>
+    setAddrState((s) => ({ ...s, list: updater(s.list) }));
+
+  // Only the signed-in customer's orders are visible
+  const orders = useMemo(
+    () =>
+      ownerKey
+        ? allOrders.filter((o) => (o.customerEmail || '').toLowerCase() === ownerKey)
+        : [],
+    [allOrders, ownerKey]
+  );
+
+  const [allBookings, setAllBookings] = useState<BuyerBooking[]>(() => {
     try {
       const saved = localStorage.getItem('cf_buyer_bookings');
       if (saved) return JSON.parse(saved);
     } catch {
       // ignore
     }
-    return [
-      {
-        id: 'SRV-BOOK-102',
-        serviceId: 'srv-massage',
-        serviceTitle: 'Massage Therapy',
-        userName: 'Ananya Sharma',
-        userContact: '9876543210',
-        preferredDate: '2026-10-30',
-        preferredTime: '11:00 AM',
-        status: 'Confirmed',
-        createdAt: '2026-10-25T14:20:00Z',
-        price: 'From ₹1,499'
-      }
-    ];
+    return [];
   });
+
+  const bookings = useMemo(
+    () =>
+      ownerKey
+        ? allBookings.filter(
+            (b) =>
+              (b.userContact || '').toLowerCase() === ownerKey ||
+              ((b as any).customerEmail || '').toLowerCase() === ownerKey ||
+              (Boolean((b as any).userPhone && user?.phone) && (b as any).userPhone === user?.phone)
+          )
+        : allBookings,
+    [allBookings, ownerKey, user?.phone]
+  );
 
   const [productReviews, setProductReviews] = useState<Record<string, ProductReview[]>>(() => {
     try {
       const saved = localStorage.getItem('cf_product_reviews');
-      return saved ? JSON.parse(saved) : initialSampleReviews;
+      return saved ? JSON.parse(saved) : {};
     } catch {
-      return initialSampleReviews;
+      return {};
     }
   });
 
@@ -230,14 +188,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [user, setUser] = useState<{ name: string; phone?: string; email?: string; isLoggedIn: boolean } | null>(() => {
-    try {
-      const saved = localStorage.getItem('cf_buyer_user');
-      return saved ? JSON.parse(saved) : { name: 'Ananya Sharma', phone: '9876543210', email: 'ananya@example.com', isLoggedIn: true };
-    } catch {
-      return { name: 'Ananya Sharma', phone: '9876543210', email: 'ananya@example.com', isLoggedIn: true };
-    }
-  });
 
   /**
    * Fetch products from the backend on mount with fallback to local curated data.
@@ -261,11 +211,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     loadProducts();
 
-    authApi.getCurrentUser().then((res) => {
-      if (res.data && res.data.isLoggedIn) {
-        setUser(res.data);
-      }
-    });
+    const handleCatalogSync = () => {
+      loadProducts();
+    };
+
+    window.addEventListener('cf_catalog_updated', handleCatalogSync);
+
+    return () => {
+      window.removeEventListener('cf_catalog_updated', handleCatalogSync);
+    };
   }, [loadProducts]);
 
   // Persist cart
@@ -289,29 +243,191 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Persist orders
   useEffect(() => {
     try {
-      localStorage.setItem('cf_buyer_orders', JSON.stringify(orders));
+      localStorage.setItem('cf_buyer_orders', JSON.stringify(allOrders));
     } catch {
       // ignore
     }
-  }, [orders]);
+  }, [allOrders]);
 
-  // Persist addresses
+  // Real-time synchronization when Super Admin updates order status or dispatches tracking
   useEffect(() => {
+    let isMounted = true;
+    const fetchServerOrders = async () => {
+      if (!ownerKey) return;
+      try {
+        const res = await axiosClient.get(`/api/v1/orders/?email=${encodeURIComponent(ownerKey)}`);
+        if (res.data && Array.isArray(res.data) && isMounted) {
+          setOrders((prev) => {
+            const map = new Map<string, BuyerOrder>();
+            // Add server orders
+            for (const sOrd of res.data) {
+              const statusMap: Record<string, BuyerOrder['status']> = {
+                pending_dispatch: 'Placed',
+                in_transit: 'Shipped',
+                delivered: 'Delivered',
+                cancelled: 'Cancelled',
+              };
+              const mappedStatus = statusMap[sOrd.orderStatus?.toLowerCase()] || 'Processing';
+              const mapped: BuyerOrder = {
+                id: sOrd.orderNumber || sOrd.id,
+                createdAt: sOrd.createdAt,
+                status: mappedStatus,
+                items: (sOrd.items || []).map((it: any) => ({
+                  product: {
+                    id: it.productId,
+                    name: it.title,
+                    price: it.unitPrice,
+                    image: it.image,
+                    category: 'Handcrafted',
+                  },
+                  quantity: it.quantity,
+                })),
+                subtotal: sOrd.totalAmount,
+                discountAmount: sOrd.discountAmount || 0,
+                deliveryCharge: sOrd.shippingFee || 0,
+                totalAmount: sOrd.totalAmount,
+                shippingAddress: sOrd.shippingAddress,
+                paymentMethod: sOrd.paymentMethod || 'cod',
+                deliverySpeed: sOrd.deliverySpeed || 'standard',
+                courierPartner: sOrd.courierPartner,
+                trackingNumber: sOrd.trackingNumber,
+                customerEmail: sOrd.customerEmail,
+              };
+              map.set(mapped.id, mapped);
+            }
+            // Keep any local orders not yet on server
+            for (const lOrd of prev) {
+              if (!map.has(lOrd.id)) {
+                map.set(lOrd.id, lOrd);
+              }
+            }
+            return Array.from(map.values());
+          });
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    fetchServerOrders();
+
+    const handleOrdersSync = () => {
+      try {
+        const saved = localStorage.getItem('cf_buyer_orders');
+        if (saved) {
+          setOrders(JSON.parse(saved));
+        }
+      } catch (err) {
+        console.warn('[StoreContext] Failed to reload synchronized orders:', err);
+      }
+      fetchServerOrders();
+    };
+
+    window.addEventListener('cf_buyer_orders_updated', handleOrdersSync);
+    window.addEventListener('cf_order_status_updated', handleOrdersSync);
+    window.addEventListener('storage', handleOrdersSync);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('cf_buyer_orders_updated', handleOrdersSync);
+      window.removeEventListener('cf_order_status_updated', handleOrdersSync);
+      window.removeEventListener('storage', handleOrdersSync);
+    };
+  }, [ownerKey]);
+
+  // Persist addresses (per account)
+  useEffect(() => {
+    if (!addrState.owner) return;
     try {
-      localStorage.setItem('cf_buyer_addresses', JSON.stringify(addresses));
+      localStorage.setItem(addressKey(addrState.owner), JSON.stringify(addrState.list));
     } catch {
       // ignore
     }
-  }, [addresses]);
+  }, [addrState]);
 
   // Persist bookings
   useEffect(() => {
     try {
-      localStorage.setItem('cf_buyer_bookings', JSON.stringify(bookings));
+      localStorage.setItem('cf_buyer_bookings', JSON.stringify(allBookings));
     } catch {
       // ignore
     }
-  }, [bookings]);
+  }, [allBookings]);
+
+  // Real-time synchronization when Super Admin updates service booking status
+  useEffect(() => {
+    let isMounted = true;
+    const fetchServerBookings = async () => {
+      if (!ownerKey) return;
+      try {
+        const res = await servicesApi.getMyBookings(ownerKey);
+        if (res.data && Array.isArray(res.data) && isMounted) {
+          setAllBookings((prev) => {
+            const map = new Map<string, BuyerBooking>();
+            const localByTitleAndDate = new Map<string, BuyerBooking>();
+
+            for (const lb of prev) {
+              map.set(lb.id, lb);
+              const key = `${lb.serviceTitle?.trim().toLowerCase()}_${lb.preferredDate?.trim()}`;
+              localByTitleAndDate.set(key, lb);
+            }
+
+            for (const sBk of res.data) {
+              const key = `${sBk.serviceTitle?.trim().toLowerCase()}_${sBk.preferredDate?.trim()}`;
+              const matchedLocal =
+                map.get(sBk.id) ||
+                (sBk.bookingRef ? map.get(sBk.bookingRef) : undefined) ||
+                localByTitleAndDate.get(key);
+
+              if (matchedLocal && matchedLocal.id !== sBk.id) {
+                map.delete(matchedLocal.id);
+              }
+
+              const merged: BuyerBooking = {
+                ...(matchedLocal || {}),
+                ...sBk,
+                id: sBk.bookingRef || sBk.id,
+                status: sBk.status,
+                userContact: sBk.userContact || ownerKey,
+                userPhone: sBk.userPhone || matchedLocal?.userPhone,
+                price: sBk.price || matchedLocal?.price || 'On Request',
+              };
+              map.set(merged.id, merged);
+            }
+
+            return Array.from(map.values());
+          });
+        }
+      } catch (err) {
+        console.warn('[StoreContext] Failed to sync server bookings:', err);
+      }
+    };
+
+    fetchServerBookings();
+
+    const handleBookingsSync = () => {
+      try {
+        const saved = localStorage.getItem('cf_buyer_bookings');
+        if (saved) {
+          setAllBookings(JSON.parse(saved));
+        }
+      } catch (err) {
+        console.warn('[StoreContext] Failed to reload synchronized bookings:', err);
+      }
+      fetchServerBookings();
+    };
+
+    window.addEventListener('cf_buyer_bookings_updated', handleBookingsSync);
+    window.addEventListener('cf_service_booked', handleBookingsSync);
+    window.addEventListener('storage', handleBookingsSync);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('cf_buyer_bookings_updated', handleBookingsSync);
+      window.removeEventListener('cf_service_booked', handleBookingsSync);
+      window.removeEventListener('storage', handleBookingsSync);
+    };
+  }, [ownerKey]);
 
   // Persist reviews
   useEffect(() => {
@@ -321,19 +437,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // ignore
     }
   }, [productReviews]);
-
-  // Persist user
-  useEffect(() => {
-    try {
-      if (user) {
-        localStorage.setItem('cf_buyer_user', JSON.stringify(user));
-      } else {
-        localStorage.removeItem('cf_buyer_user');
-      }
-    } catch {
-      // ignore
-    }
-  }, [user]);
 
   const addToCart = (product: Product, quantity = 1) => {
     setCart((prev) => {
@@ -370,15 +473,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const toggleWishlist = (product: Product) => {
-    setWishlist((prev) => {
-      if (prev.includes(product.id)) {
-        showToast(`Removed from your wishlist`, 'info');
-        return prev.filter((id) => id !== product.id);
-      } else {
-        showToast(`Saved ${product.name} to wishlist`, 'success');
-        return [...prev, product.id];
-      }
-    });
+    const isAlreadySaved = wishlist.includes(product.id);
+    if (isAlreadySaved) {
+      setWishlist((prev) => prev.filter((id) => id !== product.id));
+      showToast('Removed from your wishlist', 'info');
+    } else {
+      setWishlist((prev) => (prev.includes(product.id) ? prev : [...prev, product.id]));
+      showToast(`Saved ${product.name} to wishlist`, 'success');
+    }
   };
 
   const isInWishlist = (productId: string) => {
@@ -386,41 +488,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'info') => {
-    const id = Date.now().toString() + Math.random().toString().slice(2, 6);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3200);
-  };
-
-  const loginUser = async (phoneOrEmail: string, passwordOrOtp = '1234'): Promise<boolean> => {
-    try {
-      const res = await authApi.login(phoneOrEmail, passwordOrOtp);
-      if (res.data?.user) {
-        setUser(res.data.user);
-        setIsLoginOpen(false);
-        showToast('Logged in successfully! Welcome to Chilly Flakes.', 'success');
-        return true;
+    setToasts((prev) => {
+      // Prevent duplicate identical toasts from appearing simultaneously
+      if (prev.some((t) => t.message === message)) {
+        return prev;
       }
-    } catch (err) {
-      console.error('[Auth] Login failed:', err);
-    }
-    const fallbackUser = {
-      name: phoneOrEmail.includes('@') ? phoneOrEmail.split('@')[0] : 'Chilly Customer',
-      phone: !phoneOrEmail.includes('@') ? phoneOrEmail : '9876543210',
-      email: phoneOrEmail.includes('@') ? phoneOrEmail : 'buyer@example.com',
-      isLoggedIn: true,
-    };
-    setUser(fallbackUser);
-    setIsLoginOpen(false);
-    showToast('Logged in successfully! Welcome back.', 'success');
-    return true;
+      const id = Date.now().toString() + Math.random().toString().slice(2, 6);
+      setTimeout(() => {
+        setToasts((current) => current.filter((t) => t.id !== id));
+      }, 3200);
+      return [...prev, { id, message, type }];
+    });
   };
 
   const logoutUser = async () => {
-    await authApi.logout();
-    setUser(null);
-    showToast('Logged out of account.', 'info');
+    await auth.logout();
+    showToast('You have been signed out.', 'info');
   };
 
   const addOrder = (newOrder: BuyerOrder) => {
@@ -431,7 +514,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOrders((prev) =>
       prev.map((ord) => (ord.id === orderId ? { ...ord, status: 'Cancelled' } : ord))
     );
+    syncBuyerCancelToAdmin(orderId);
     showToast(`Order ${orderId} has been cancelled`, 'info');
+
+    // Notify real backend API to atomically update DB and restock inventory
+    void axiosClient
+      .post(`/api/v1/orders/${orderId}/cancel/`, {
+        reason: 'Cancelled by customer from account page',
+      })
+      .catch((err) => {
+        console.warn('Backend cancel sync:', err?.response?.data?.message || err.message);
+      });
+  };
+
+  const requestReturn = (orderId: string, reason: string) => {
+    setOrders((prev) =>
+      prev.map((ord) => (ord.id === orderId ? { ...ord, returnRequested: true, returnReason: reason } : ord))
+    );
+    syncBuyerReturnToAdmin(orderId, reason);
+    showToast(`Return requested for ${orderId}`, 'info');
   };
 
   const addAddress = (addr: Omit<BuyerAddress, 'id'>): BuyerAddress => {
@@ -464,23 +565,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast('Default delivery address updated', 'success');
   };
 
-  const addBooking = (bookingData: Omit<BuyerBooking, 'id' | 'createdAt' | 'status'>): BuyerBooking => {
+  const addBooking = (
+    bookingData: Omit<BuyerBooking, 'id' | 'createdAt' | 'status'>,
+    customId?: string
+  ): BuyerBooking => {
     const newBooking: BuyerBooking = {
       ...bookingData,
-      id: `SRV-BOOK-${Math.floor(100 + Math.random() * 900)}`,
+      id: customId || `CF-SRV-${Math.floor(100000 + Math.random() * 900000)}`,
       createdAt: new Date().toISOString(),
       status: 'Requested',
     };
-    setBookings((prev) => [newBooking, ...prev]);
+    setAllBookings((prev) => [newBooking, ...prev]);
     showToast(`Service appointment requested for ${bookingData.serviceTitle}!`, 'success');
     return newBooking;
   };
 
   const cancelBooking = (bookingId: string) => {
-    setBookings((prev) =>
+    setAllBookings((prev) =>
       prev.map((b) => (b.id === bookingId ? { ...b, status: 'Cancelled' } : b))
     );
     showToast('Appointment cancelled', 'info');
+
+    // Notify backend API to update database and dispatch alert to Super Admin email
+    void servicesApi
+      .cancelBooking(bookingId, 'Client requested cancellation from account page', ownerKey || undefined)
+      .then(() => {
+        window.dispatchEvent(new CustomEvent('cf_buyer_bookings_updated'));
+      })
+      .catch((err) => {
+        console.warn('Backend service booking cancel sync:', err?.response?.data?.message || err.message);
+      });
   };
 
   const addProductReview = (reviewData: Omit<ProductReview, 'id' | 'createdAt' | 'verifiedPurchase'>) => {
@@ -554,10 +668,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         openProductPage,
         closeProductPage,
         showToast,
-        loginUser,
         logoutUser,
         addOrder,
         cancelOrder,
+        requestReturn,
         addAddress,
         removeAddress,
         setDefaultAddress,

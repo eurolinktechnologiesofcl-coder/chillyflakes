@@ -13,7 +13,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { ordersApi } from '../api';
-import { formatRupees, FREE_SHIPPING_THRESHOLD, DELIVERY_CHARGE } from '../utils/currency';
+import { formatRupees } from '../utils/currency';
+import { useLivePlatformSettings } from '../utils/platformSync';
 
 export const CartDrawer: React.FC = () => {
   const { t } = useTranslation();
@@ -29,42 +30,76 @@ export const CartDrawer: React.FC = () => {
   } = useStore();
 
   const navigate = useNavigate();
+  const { freeShippingThreshold, standardDeliveryFee } = useLivePlatformSettings();
 
   const [promoCode, setPromoCode] = useState('');
-  const [promoApplied, setPromoApplied] = useState(false);
-  const [discountPercent, setDiscountPercent] = useState(0);
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [postalCode, setPostalCode] = useState('682001');
   const [orderDone, setOrderDone] = useState(false);
   const [createdOrderRef] = useState<string>('');
 
-  const discountAmount = promoApplied ? (cartTotal * discountPercent) / 100 : 0;
-  const deliveryCharge = cartTotal >= FREE_SHIPPING_THRESHOLD || cartTotal === 0 ? 0 : DELIVERY_CHARGE;
+  const promoApplied = Boolean(appliedCoupon && appliedCoupon.valid);
+  let discountAmount = 0;
+  if (promoApplied) {
+    if (appliedCoupon.discountType === 'FIXED') {
+      discountAmount = appliedCoupon.discountValue || 0;
+    } else {
+      const pct = appliedCoupon.discountValue || appliedCoupon.discountPercent || 0;
+      discountAmount = Math.round((cartTotal * pct) / 100);
+      if (appliedCoupon.maxDiscountAmount && discountAmount > appliedCoupon.maxDiscountAmount) {
+        discountAmount = appliedCoupon.maxDiscountAmount;
+      }
+    }
+    discountAmount = Math.min(discountAmount, cartTotal);
+  }
+
+  const deliveryCharge = cartTotal >= freeShippingThreshold || cartTotal === 0 ? 0 : standardDeliveryFee;
   const finalPayable = Math.max(0, cartTotal - discountAmount + deliveryCharge);
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!promoCode.trim()) return;
+    const code = promoCode.trim().toUpperCase();
+    if (!code) return;
 
     try {
-      const res = await ordersApi.validateCoupon(promoCode);
+      const res = await ordersApi.validateCoupon(code, cartTotal);
       if (res.data?.valid) {
-        setPromoApplied(true);
-        setDiscountPercent(res.data.discountPercent || 10);
-        showToast(res.data.message || 'Coupon applied successfully!', 'success');
+        setAppliedCoupon(res.data);
+        setPromoCode('');
+        showToast(res.data.message || `Coupon "${code}" applied!`, 'success');
       } else {
-        setPromoApplied(false);
-        setDiscountPercent(0);
-        showToast(res.data?.message || 'Invalid coupon code. Try "CHILLY10"', 'warning');
+        showToast(res.data?.message || 'Invalid coupon code. Try "POD" or "CHILLY10"', 'warning');
       }
     } catch {
-      showToast('Could not validate coupon. Try "CHILLY10"', 'warning');
+      if (code === 'POD') {
+        if (cartTotal >= 500) {
+          setAppliedCoupon({
+            valid: true,
+            code: 'POD',
+            discountType: 'FIXED',
+            discountValue: 50,
+            message: 'Flat ₹50 OFF applied!',
+          });
+          setPromoCode('');
+          showToast('Coupon "POD" applied! Flat ₹50 discount.', 'success');
+        } else {
+          showToast('Minimum order of ₹500 required for POD coupon.', 'warning');
+        }
+      } else {
+        showToast('Could not validate coupon. Try "CHILLY10"', 'warning');
+      }
     }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    showToast('Coupon removed.', 'info');
   };
 
   if (!isCartOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+    <div className="fixed inset-0 z-[100] overflow-hidden">
       {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
@@ -106,6 +141,31 @@ export const CartDrawer: React.FC = () => {
               {t('cart.change', 'Change')}
             </button>
           </div>
+
+          {/* Dynamic Free Shipping Progress Bar (Driven by Super Admin Settings) */}
+          {cart.length > 0 && !orderDone && (
+            <div className="bg-[#F4F1EA] px-5 py-2 border-b border-[#ECE7DD] text-[11px]">
+              {cartTotal >= freeShippingThreshold ? (
+                <div className="flex items-center gap-1.5 text-[#2E4D34] font-semibold">
+                  <span>🎉</span>
+                  <span>Unlocked FREE Delivery (Orders {formatRupees(freeShippingThreshold)}+)</span>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[#506052]">
+                    <span>Add <strong className="text-[#2E4D34]">{formatRupees(freeShippingThreshold - cartTotal)}</strong> more for FREE delivery</span>
+                    <span className="font-mono text-[10px]">{Math.round((cartTotal / freeShippingThreshold) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-[#E3DDD1] h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-[#2E4D34] h-full rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(100, Math.round((cartTotal / freeShippingThreshold) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Cart Items List */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
@@ -239,26 +299,50 @@ export const CartDrawer: React.FC = () => {
             <div className="bg-[#FAF7F2] border-t border-[#ECE7DD] p-4 sm:p-5 space-y-3.5">
               
               {/* Coupon Box */}
-              <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                <div className="relative flex-1">
-                  <Tag className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#7E8F80]" />
-                  <input
-                    type="text"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                    placeholder={t('cart.couponPlaceholder', 'Enter Coupon: CHILLY10')}
-                    disabled={promoApplied}
-                    className="w-full pl-9 pr-3 py-2 text-xs border border-[#ECE7DD] rounded-xl focus:outline-none focus:border-[#2E4D34] uppercase font-mono bg-white text-[#223B28]"
-                  />
+              {promoApplied ? (
+                <div className="flex items-center justify-between p-2.5 bg-[#EAF1EA] border border-[#2E4D34]/30 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-[#2E4D34]" />
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-bold text-xs text-[#2E4D34]">{appliedCoupon.code}</span>
+                        <span className="text-[10px] bg-[#2E4D34] text-white px-1.5 py-0.5 rounded font-semibold">APPLIED</span>
+                      </div>
+                      <p className="text-[11px] text-[#506052]">
+                        {appliedCoupon.discountType === 'FIXED' 
+                          ? `Flat ₹${appliedCoupon.discountValue} OFF` 
+                          : `${appliedCoupon.discountValue || appliedCoupon.discountPercent || 10}% OFF`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    className="text-xs text-[#DC2626] hover:text-red-700 font-semibold px-2 py-1 rounded hover:bg-red-50 transition-colors cursor-pointer"
+                  >
+                    {t('cart.remove', 'Remove')}
+                  </button>
                 </div>
-                <button
-                  type="submit"
-                  disabled={promoApplied}
-                  className="px-4 py-2 bg-[#2E4D34] hover:bg-[#233B27] disabled:bg-[#8F9E8F] text-white text-xs font-semibold rounded-xl transition-colors"
-                >
-                  {promoApplied ? t('cart.applied', 'Applied') : t('cart.apply', 'Apply')}
-                </button>
-              </form>
+              ) : (
+                <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Tag className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#7E8F80]" />
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      placeholder={t('cart.couponPlaceholder', 'Enter Coupon: POD, CHILLY10')}
+                      className="w-full pl-9 pr-3 py-2 text-xs border border-[#ECE7DD] rounded-xl focus:outline-none focus:border-[#2E4D34] uppercase font-mono bg-white text-[#223B28]"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[#2E4D34] hover:bg-[#233B27] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                  >
+                    {t('cart.apply', 'Apply')}
+                  </button>
+                </form>
+              )}
 
               {/* Bill Summary */}
               <div className="space-y-1.5 text-xs text-[#506052] pt-2 border-t border-[#E5DDD0]">
@@ -268,7 +352,10 @@ export const CartDrawer: React.FC = () => {
                 </div>
                 {promoApplied && (
                   <div className="flex justify-between text-[#2E4D34]">
-                    <span>{t('cart.couponDiscount', 'Coupon Discount (10%)')}</span>
+                    <span>
+                      {t('cart.couponDiscount', 'Coupon Discount')} ({appliedCoupon.code}
+                      {appliedCoupon.discountType === 'FIXED' ? ` - Flat ₹${appliedCoupon.discountValue}` : ` - ${appliedCoupon.discountValue || appliedCoupon.discountPercent || 10}%`})
+                    </span>
                     <span>- {formatRupees(discountAmount)}</span>
                   </div>
                 )}

@@ -26,7 +26,6 @@ export const Navbar: React.FC = () => {
     products, 
     wishlist,
     user,
-    setIsLoginOpen,
     setSelectedCategory
   } = useStore();
 
@@ -421,13 +420,14 @@ export const Navbar: React.FC = () => {
                   </span>
                 </Link>
               ) : (
-                <button
-                  onClick={() => setIsLoginOpen(true)}
+                <Link
+                  id="navbar-signin"
+                  to={`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#2E4D34] text-[#2E4D34] hover:bg-[#2E4D34] hover:text-white transition-all text-xs font-semibold"
                 >
                   <User className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">{t('nav.signIn', 'Sign In')}</span>
-                </button>
+                </Link>
               )}
             </div>
 
@@ -461,12 +461,12 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-[100] lg:hidden">
           <div 
             className="fixed inset-0 bg-black/40 backdrop-blur-xs"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 w-72 bg-white shadow-2xl p-6 flex flex-col justify-between z-50 overflow-y-auto">
+          <div className="fixed inset-y-0 left-0 w-72 bg-white shadow-2xl p-6 flex flex-col justify-between z-[100] overflow-y-auto">
             <div>
               <div className="flex items-center justify-between pb-4 border-b border-[#ECE7DD]">
                 <Logo variant="dark" size="sm" showTagline={false} />

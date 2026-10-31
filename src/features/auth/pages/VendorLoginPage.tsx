@@ -19,6 +19,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { FormField } from '../../../components/ui/FormField';
 import { PasswordInput } from '../../../components/ui/PasswordInput';
 import { Button } from '../../../components/ui/Button';
+import { setAuthToken } from '../../../api/client';
 import type { NormalizedApiError, VendorStatus } from '../../../types/auth';
 
 const DemoLoginHelper = import.meta.env.VITE_DEMO_MODE === 'true'
@@ -93,6 +94,9 @@ export const VendorLoginPage: React.FC = () => {
       },
       {
         onSuccess: (res) => {
+          if (res.token) {
+            setAuthToken(res.token);
+          }
           // Set in-memory session
           setUser(res.user);
 

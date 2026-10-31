@@ -10,13 +10,22 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  ShoppingBag,
+  CreditCard,
+  Settings,
 } from 'lucide-react';
 import { useAdminOverview } from '../hooks/useAdminOverview';
-import { formatIndianNumber } from '../../../utils/currency';
+import { useAdminOrders } from '../hooks/useAdminOrders';
+import { useAdminFinance } from '../hooks/useAdminFinance';
+import { formatRupees, formatIndianNumber } from '../../../utils/currency';
 import { Skeleton } from '../../../components/vendor/Skeleton';
+import { useLivePlatformSettings } from '../../../utils/platformSync';
 
 export const AdminDashboardPage: React.FC = () => {
   const { data, isLoading, isError, refetch, isFetching } = useAdminOverview();
+  const { data: ordersData } = useAdminOrders();
+  const { data: financeData } = useAdminFinance();
+  const { settings: liveSettings } = useLivePlatformSettings();
 
   const metrics = data?.metrics;
   const alerts = data?.alerts || [];
@@ -256,7 +265,109 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         </Link>
       </div>
+
+      {/* Operational & Governance Mission Control Hub */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-[#223B28]">Operations, Treasury & Storefront Governance</h2>
+            <p className="text-xs text-[#8E9B90]">
+              Direct access into platform logistics, settlement disbursements, CMS merchandising, and tax compliance.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* 1. Orders & Returns */}
+          <Link
+            to="/admin/orders"
+            className="p-5 rounded-2xl border border-[#EAE5DB] bg-white hover:border-[#2E4D34] shadow-2xs hover:shadow-md transition-all group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between text-[#8E9B90] mb-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider group-hover:text-[#2E4D34]">
+                  Orders & Returns
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-[#EAF1EA] text-[#2E4D34] flex items-center justify-center">
+                  <ShoppingBag className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-serif font-bold text-[#223B28]">
+                {ordersData?.tab_counts?.all ?? 0} Orders
+              </div>
+              <div className="text-xs text-[#5F6D61] mt-1 space-y-0.5">
+                <p>• {ordersData?.tab_counts?.pending_dispatch ?? 0} pending dispatch</p>
+                <p className="text-rose-700 font-semibold">• {ordersData?.tab_counts?.return_requested ?? 0} return claim open</p>
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-[#F0EDE6] text-xs font-semibold text-[#2E4D34] flex items-center justify-between">
+              <span>Inspect Shipments</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* 2. Finance & Settlements */}
+          <Link
+            to="/admin/finance"
+            className="p-5 rounded-2xl border border-[#EAE5DB] bg-white hover:border-[#2E4D34] shadow-2xs hover:shadow-md transition-all group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between text-[#8E9B90] mb-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider group-hover:text-[#2E4D34]">
+                  Finance & Settlements
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-800 flex items-center justify-center">
+                  <CreditCard className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-serif font-bold text-[#223B28]">
+                {formatRupees(financeData?.summary?.gmv ?? 0)}
+              </div>
+              <div className="text-xs text-[#5F6D61] mt-1 space-y-0.5">
+                <p>• Net Revenue: <span className="font-semibold text-emerald-700">{formatRupees(financeData?.summary?.platform_revenue ?? 0)}</span></p>
+                <p className="text-amber-800 font-semibold">• {financeData?.summary?.payout_batches_pending ?? 0} settlement batches ready</p>
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-[#F0EDE6] text-xs font-semibold text-[#2E4D34] flex items-center justify-between">
+              <span>Manage Treasury</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* 3. Global Settings */}
+          <Link
+            to="/admin/settings"
+            className="p-5 rounded-2xl border border-[#EAE5DB] bg-white hover:border-[#2E4D34] shadow-2xs hover:shadow-md transition-all group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between text-[#8E9B90] mb-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider group-hover:text-[#2E4D34]">
+                  Platform Settings
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-zinc-100 text-zinc-700 flex items-center justify-center">
+                  <Settings className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-serif font-bold text-[#223B28]">
+                Governance
+              </div>
+              <div className="text-xs text-[#5F6D61] mt-1 space-y-0.5">
+                <p>• Take rate: {liveSettings.marketplace.platform_fee_percent}% | TCS: {liveSettings.marketplace.tcs_tax_percent}%</p>
+                <p>• Free shipping above: {formatRupees(liveSettings.shipping.free_shipping_threshold)}</p>
+                <p className={liveSettings.system_flags.eco_delivery_enabled ? 'text-emerald-700 font-semibold' : 'text-zinc-500'}>
+                  • {liveSettings.system_flags.eco_delivery_enabled ? 'Eco delivery active' : 'Eco delivery paused'}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-[#F0EDE6] text-xs font-semibold text-[#2E4D34] flex items-center justify-between">
+              <span>Configure Settings</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+        </div>
+      </div>
     </div>
+
   );
 };
 

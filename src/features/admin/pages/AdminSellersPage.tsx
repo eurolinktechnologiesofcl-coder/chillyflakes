@@ -7,7 +7,8 @@ import {
   CheckCircle2,
   Eye,
 } from 'lucide-react';
-import { useAdminSellers } from '../hooks/useAdminSellers';
+import { useAdminSellers, useAdminSellerMutations } from '../hooks/useAdminSellers';
+import { useToast } from '../../../components/vendor/Toast';
 import { Pagination } from '../../../components/vendor/Pagination';
 import { EmptyState } from '../../../components/vendor/EmptyState';
 import { Skeleton } from '../../../components/vendor/Skeleton';
@@ -29,6 +30,19 @@ export const AdminSellersPage: React.FC = () => {
 
   // Review Modal selection (from route param or local state)
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(routeSellerId || null);
+
+  const toast = useToast();
+  const { approveSeller, isApproving } = useAdminSellerMutations();
+
+  const handleQuickApprove = async (id: string, name: string) => {
+    try {
+      await approveSeller({ sellerId: id, reason: 'Approved by administrator' });
+      toast.success(`Merchant "${name}" approved successfully!`);
+      refetch();
+    } catch {
+      toast.error('Failed to approve merchant');
+    }
+  };
 
   const { data, isLoading, isError, refetch, isFetching } = useAdminSellers({
     status: statusParam !== 'all' ? statusParam : undefined,
@@ -290,14 +304,27 @@ export const AdminSellersPage: React.FC = () => {
 
                         {/* Action */}
                         <td className="py-3.5 px-4 text-right">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedSellerId(seller.id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2E4D34] hover:bg-[#233B28] text-white text-xs font-semibold transition-colors shadow-2xs"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>Review</span>
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            {seller.status !== 'approved' && (
+                              <button
+                                type="button"
+                                onClick={() => handleQuickApprove(seller.id, seller.store_name)}
+                                disabled={isApproving}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors shadow-2xs cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Approve</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSellerId(seller.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2E4D34] hover:bg-[#233B28] text-white text-xs font-semibold transition-colors shadow-2xs cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Details</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

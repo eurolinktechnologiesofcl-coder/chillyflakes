@@ -128,19 +128,21 @@ export const FeaturedProducts: React.FC = () => {
             </div>
 
             {/* Star Rating with Review Count */}
-            <div className="flex items-center gap-1 mt-1.5">
-              <div className="flex items-center text-[#E5A024]">
-                {[...Array(5)].map((_, i) => (
-                  <Star 
-                    key={i} 
-                    className="w-3 h-3 fill-current text-[#E5A024]" 
-                  />
-                ))}
+            {Boolean(product.rating && product.rating > 0 && product.reviewsCount && product.reviewsCount > 0) && (
+              <div className="flex items-center gap-1 mt-1.5">
+                <div className="flex items-center text-[#E5A024]">
+                  {[...Array(5)].map((_, i) => (
+                    <Star 
+                      key={i} 
+                      className="w-3 h-3 fill-current text-[#E5A024]" 
+                    />
+                  ))}
+                </div>
+                <span className="text-[10px] text-[#7E8F80]">
+                  ({product.reviewsCount})
+                </span>
               </div>
-              <span className="text-[10px] text-[#7E8F80]">
-                ({product.reviewsCount})
-              </span>
-            </div>
+            )}
           </div>
 
           {/* Deep Green Add to Cart Button */}

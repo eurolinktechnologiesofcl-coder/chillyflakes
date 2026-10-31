@@ -504,10 +504,12 @@ export const ShopPage: React.FC = () => {
                         </div>
 
                         {/* Rating pill bottom-left */}
-                        <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
-                          <span>{prod.rating.toFixed(1)}</span>
-                          <Star className="w-2.5 h-2.5 fill-[#FBBF24] text-[#FBBF24]" />
-                        </div>
+                        {Boolean(prod.rating && prod.rating > 0) && (
+                          <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <span>{prod.rating.toFixed(1)}</span>
+                            <Star className="w-2.5 h-2.5 fill-[#FBBF24] text-[#FBBF24]" />
+                          </div>
+                        )}
                       </div>
 
                       {/* Product Content */}

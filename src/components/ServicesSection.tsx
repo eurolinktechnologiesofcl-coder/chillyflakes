@@ -10,7 +10,8 @@ import {
   Sparkles, 
   Search, 
   Star, 
-  Calendar 
+  Calendar,
+  Phone 
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { servicesApi } from '../api';
@@ -26,6 +27,9 @@ export interface ServiceItem {
   rating: number;
   reviewsCount: number;
   image: string;
+  duration_min?: number;
+  price_display?: string;
+  price_num?: number;
 }
 
 export const servicesData: ServiceItem[] = [
@@ -181,7 +185,7 @@ export const servicesData: ServiceItem[] = [
 ];
 
 export const ServicesSection: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { showToast } = useStore();
   const [allServices, setAllServices] = useState<ServiceItem[]>(servicesData);
@@ -193,32 +197,60 @@ export const ServicesSection: React.FC = () => {
 
   // Form states for booking
   const [bookingDate, setBookingDate] = useState('');
-  const [bookingTime, setBookingTime] = useState('10:00 AM');
+  const [bookingTime, setBookingTime] = useState('Morning (09:00 AM - 12:00 PM)');
   const [userName, setUserName] = useState('');
   const [userContact, setUserContact] = useState('');
+  const [userPhone, setUserPhone] = useState('');
 
-  // Fetch community services from the backend API on mount
+  // Fetch community services from the backend API on mount and on admin updates
   useEffect(() => {
-    servicesApi.getServices().then((res) => {
-      if (res.data && res.data.length > 0) {
-        setAllServices(res.data);
-      }
-    });
+    const fetchServices = () => {
+      servicesApi.getServices().then((res) => {
+        if (res.data && res.data.length > 0) {
+          const mapped: ServiceItem[] = (res.data as any[]).map((item) => ({
+            id: item.id,
+            title: item.title,
+            subtitle: item.subtitle || (item.category ? `${item.category} Care` : 'Professional Care'),
+            category: item.category || 'Wellness',
+            description: item.description,
+            duration: item.duration || `${item.duration_min || 60} mins`,
+            price: item.price_display || (typeof item.price === 'number' ? `From ₹${item.price.toLocaleString('en-IN')}` : String(item.price || 'From ₹499')),
+            rating: item.rating ?? 5.0,
+            reviewsCount: item.reviewsCount ?? 25,
+            image: item.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=600&q=80',
+            duration_min: item.duration_min,
+            price_display: item.price_display,
+            price_num: typeof item.price === 'number' ? item.price : undefined,
+          }));
+          setAllServices(mapped);
+        }
+      });
+    };
+
+    fetchServices();
+    window.addEventListener('cf_services_updated', fetchServices);
+    return () => {
+      window.removeEventListener('cf_services_updated', fetchServices);
+    };
   }, []);
 
-  const getLocalized = (s: ServiceItem) => ({
-    ...s,
-    title: t(`services.items.${s.id}.title`, s.title),
-    subtitle: t(`services.items.${s.id}.subtitle`, s.subtitle),
-    description: t(`services.items.${s.id}.description`, s.description),
-    duration: t(`services.items.${s.id}.duration`, s.duration),
-    price: t(`services.items.${s.id}.price`, s.price),
-    displayCategory: t(`services.tags.${s.category}`, s.category),
-  });
+  const getLocalized = (s: ServiceItem) => {
+    const hasKey = Boolean(s.id && s.id.startsWith('srv-'));
+    const isNonEnglish = Boolean(i18n?.language && i18n.language !== 'en');
+    return {
+      ...s,
+      title: isNonEnglish && hasKey ? t(`services.items.${s.id}.title`, s.title) : s.title,
+      subtitle: isNonEnglish && hasKey ? t(`services.items.${s.id}.subtitle`, s.subtitle) : (s.subtitle || `${s.category || 'Professional'} Service`),
+      description: isNonEnglish && hasKey ? t(`services.items.${s.id}.description`, s.description) : s.description,
+      duration: s.duration,
+      price: s.price,
+      displayCategory: t(`services.tags.${s.category}`, s.category),
+    };
+  };
 
   const localizedList = useMemo(() => {
     return allServices.map(getLocalized);
-  }, [allServices, t]);
+  }, [allServices, t, i18n?.language]);
 
   // 8 Service Cards for the page grid
   const displayedServices = localizedList.slice(0, 8);
@@ -241,27 +273,34 @@ export const ServicesSection: React.FC = () => {
     e.preventDefault();
     if (!selectedService) return;
 
+    const customerEmail = userContact.trim();
+    const customerPhone = userPhone.trim();
+
     try {
       const res = await servicesApi.createBooking({
         serviceId: selectedService.id,
         serviceTitle: selectedService.title,
         userName,
-        userContact,
+        userContact: customerEmail || customerPhone,
+        customerEmail: customerEmail || undefined,
+        customerPhone: customerPhone || undefined,
         preferredDate: bookingDate,
         preferredTime: bookingTime,
       });
 
       setBookingConfirmed(true);
-      showToast(res.data?.message || `Appointment requested for ${selectedService.title}!`, 'success');
+      showToast(res.data?.message || `Appointment requested for ${selectedService.title}! Confirmation email sent.`, 'success');
+      window.dispatchEvent(new CustomEvent('cf_service_booked'));
       setTimeout(() => {
         setSelectedService(null);
         setBookingConfirmed(false);
         setBookingDate('');
         setUserName('');
         setUserContact('');
+        setUserPhone('');
       }, 2000);
-    } catch {
-      showToast(t('services.modal.errorMsg', 'Could not submit booking. Please try again.'), 'warning');
+    } catch (err: any) {
+      showToast(err.message || t('services.modal.errorMsg', 'Could not submit booking. Please try again.'), 'warning');
     }
   };
 
@@ -585,10 +624,10 @@ export const ServicesSection: React.FC = () => {
                     </div>
                     <div>
                       <label className="text-[11px] text-[#6C7B6D] block mb-1">
-                        {t('services.modal.contactPlaceholder', 'Phone or Email')}
+                        Email Address
                       </label>
                       <input 
-                        type="text" 
+                        type="email" 
                         required 
                         value={userContact}
                         onChange={(e) => setUserContact(e.target.value)}
@@ -601,31 +640,46 @@ export const ServicesSection: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] text-[#6C7B6D] block mb-1 flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-[#2E4D34]" /> Preferred Date
+                        <Phone className="w-3 h-3 text-[#2E4D34]" /> Phone Number
                       </label>
                       <input 
-                        type="date" 
+                        type="tel" 
                         required 
-                        value={bookingDate}
-                        onChange={(e) => setBookingDate(e.target.value)}
+                        value={userPhone}
+                        onChange={(e) => setUserPhone(e.target.value)}
+                        placeholder="+91 98765 43210"
                         className="w-full px-3 py-2 text-xs rounded-xl border border-[#ECE7DD] focus:outline-none focus:border-[#2E4D34]"
                       />
                     </div>
                     <div>
                       <label className="text-[11px] text-[#6C7B6D] block mb-1 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-[#2E4D34]" /> Preferred Time
+                        <Calendar className="w-3 h-3 text-[#2E4D34]" /> Preferred Date
                       </label>
-                      <select 
-                        value={bookingTime}
-                        onChange={(e) => setBookingTime(e.target.value)}
+                      <input 
+                        type="date" 
+                        required 
+                        min={new Date().toISOString().split('T')[0]}
+                        value={bookingDate}
+                        onChange={(e) => setBookingDate(e.target.value)}
                         className="w-full px-3 py-2 text-xs rounded-xl border border-[#ECE7DD] focus:outline-none focus:border-[#2E4D34]"
-                      >
-                        <option>{t('services.modal.slotMorning', 'Morning (09:00 AM - 12:00 PM)')}</option>
-                        <option>{t('services.modal.slotAfternoon', 'Afternoon (12:00 PM - 03:00 PM)')}</option>
-                        <option>{t('services.modal.slotEvening', 'Evening (03:00 PM - 06:00 PM)')}</option>
-                        <option>{t('services.modal.slotWeekend', 'Weekend Special Slot')}</option>
-                      </select>
+                      />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-[#6C7B6D] block mb-1 flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-[#2E4D34]" /> Preferred Time
+                    </label>
+                    <select 
+                      value={bookingTime}
+                      onChange={(e) => setBookingTime(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-[#ECE7DD] focus:outline-none focus:border-[#2E4D34]"
+                    >
+                      <option>{t('services.modal.slotMorning', 'Morning (09:00 AM - 12:00 PM)')}</option>
+                      <option>{t('services.modal.slotAfternoon', 'Afternoon (12:00 PM - 03:00 PM)')}</option>
+                      <option>{t('services.modal.slotEvening', 'Evening (03:00 PM - 06:00 PM)')}</option>
+                      <option>{t('services.modal.slotWeekend', 'Weekend Special Slot')}</option>
+                    </select>
                   </div>
 
                   <button

@@ -18,7 +18,12 @@ import {
   Building,
   User,
   LogOut,
+  Eye,
+  X,
+  FileText,
 } from 'lucide-react';
+
+import { getDocumentPreviewLink, getVendorStatus } from '../../../api/vendorOnboarding';
 
 import { useAuth } from '../../../hooks/useAuth';
 import { Button } from '../../../components/ui/Button';
@@ -66,7 +71,7 @@ export const VendorOnboardingPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, logout } = useAuth();
+  const { user, logout, refetchUser } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -94,6 +99,10 @@ export const VendorOnboardingPage: React.FC = () => {
   // General banners & feedback
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [detailSection, setDetailSection] = useState<1 | 2 | 3 | 4 | null>(null);
+  const [docUrls, setDocUrls] = useState<Record<string, string>>({});
+  const [reviewerNote, setReviewerNote] = useState<string | null>(null);
 
   // =========================================================================
   // STEP 1 STATE: Store Details
@@ -168,9 +177,11 @@ export const VendorOnboardingPage: React.FC = () => {
   // Flagged sections from resubmission requests
   const flaggedSections = draft?.flagged_sections || [];
 
-  // Populate draft data when loaded
+  // Populate draft data when first loaded (only once — later saves must not clobber in-progress edits)
+  const hydratedRef = useRef(false);
   useEffect(() => {
-    if (!draft) return;
+    if (!draft || hydratedRef.current) return;
+    hydratedRef.current = true;
 
     if (draft.step_1) {
       setStoreName(draft.step_1.store_name || user?.store_name || '');
@@ -559,8 +570,8 @@ export const VendorOnboardingPage: React.FC = () => {
       } else if (currentStep === 4) {
         payload = {
           account_holder_name: accHolderName.trim(),
-          account_number: isEditingAccNumber ? accNumber.trim() : undefined,
-          confirm_account_number: isEditingAccNumber ? confirmAccNumber.trim() : undefined,
+          account_number: !existingMaskedAcc || isEditingAccNumber ? accNumber.trim() : undefined,
+          confirm_account_number: !existingMaskedAcc || isEditingAccNumber ? confirmAccNumber.trim() : undefined,
           ifsc_code: ifscCode.trim().toUpperCase(),
           bank_name: bankInfo?.bank,
           branch_name: bankInfo?.branch,
@@ -591,16 +602,62 @@ export const VendorOnboardingPage: React.FC = () => {
 
   // Submit Final Application
   const handleSubmitFinal = async () => {
-    if (!validateCurrentStep()) return;
+    setGeneralError(null);
+    if (!validateCurrentStep()) {
+      setGeneralError(t('onboarding.acceptAgreementFirst', { defaultValue: 'Please accept the Seller Agreement checkbox before submitting.' }));
+      return;
+    }
 
     try {
       await submitMutation.mutateAsync();
-      navigate('/vendor/status', { replace: true });
+      setSubmitSuccess(true);
     } catch (err: unknown) {
-      const apiErr = err as { message?: string };
-      setGeneralError(apiErr.message || t('onboarding.submitFailed', { defaultValue: 'Failed to submit onboarding application.' }));
+      const apiErr = err as { message?: string; response?: { data?: { message?: string } } };
+      setGeneralError(
+        apiErr.response?.data?.message ||
+          apiErr.message ||
+          t('onboarding.submitFailed', { defaultValue: 'Failed to submit onboarding application.' })
+      );
     }
   };
+
+  // After the success popup: refresh session status so route guards allow /vendor/status
+  const finishSubmission = async () => {
+    try {
+      await refetchUser();
+    } finally {
+      setSubmitSuccess(false);
+      navigate('/vendor/status', { replace: true });
+    }
+  };
+
+  // Reviewer's note for resubmission requests
+  useEffect(() => {
+    if (user?.vendor_status !== 'resubmission_requested') return;
+    getVendorStatus()
+      .then((s) => setReviewerNote(s.rejection_reason || null))
+      .catch(() => undefined);
+  }, [user?.vendor_status]);
+
+  // Resolve preview URLs for the documents shown in the detail popup
+  useEffect(() => {
+    if (!detailSection) return;
+    const docs =
+      detailSection === 1
+        ? [logoDoc, bannerDoc]
+        : detailSection === 3
+        ? [panDoc, idDoc, addressDoc, artisanCardDoc]
+        : detailSection === 4
+        ? [chequeDoc]
+        : [];
+    docs.forEach((d) => {
+      if (!d?.id || docUrls[d.id]) return;
+      getDocumentPreviewLink(d.id)
+        .then((r) => setDocUrls((prev) => ({ ...prev, [d.id]: r.url })))
+        .catch(() => undefined);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailSection]);
 
   // Step definitions for the progress indicator
   const stepsMeta = useMemo(
@@ -695,10 +752,19 @@ export const VendorOnboardingPage: React.FC = () => {
               {t('onboarding.resubmissionNotice', { defaultValue: 'Re-verification Requested' })}
             </p>
             <p className="text-[#7F1D1D] leading-relaxed">
-              {draft?.step_1?.short_description ||
+              {reviewerNote ||
                 t('onboarding.resubmissionDesc', {
                   defaultValue: 'Please fix the highlighted sections indicated by the review team and re-submit.',
                 })}
+            </p>
+            <p className="text-[11px] text-[#991B1B]">
+              Sections to fix:{' '}
+              <strong>
+                {flaggedSections
+                  .map((n: number) => ({ 1: 'Store Identity', 2: 'Pickup Address', 3: 'KYC Documents', 4: 'Bank Details' } as Record<number, string>)[n])
+                  .filter(Boolean)
+                  .join(', ')}
+              </strong>
             </p>
           </div>
         </div>
@@ -1515,7 +1581,13 @@ export const VendorOnboardingPage: React.FC = () => {
             </div>
 
             {/* Summary Card 1: Store Identity */}
-            <div className="p-5 rounded-2xl bg-[#FAF7F2] border border-[#EAE5DB] space-y-3">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setDetailSection(1)}
+              onKeyDown={(e) => e.key === 'Enter' && setDetailSection(1)}
+              className="p-5 rounded-2xl bg-[#FAF7F2] border border-[#EAE5DB] space-y-3 cursor-pointer hover:border-[#2E4D34]/40 hover:shadow-md transition"
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-[#2E4D34] uppercase tracking-wider">
                   <Store className="w-4 h-4" />
@@ -1523,7 +1595,10 @@ export const VendorOnboardingPage: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(1)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentStep(1);
+                  }}
                   className="inline-flex items-center gap-1 text-xs text-[#2E4D34] hover:underline font-bold"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
@@ -1551,7 +1626,13 @@ export const VendorOnboardingPage: React.FC = () => {
             </div>
 
             {/* Summary Card 2: Pickup Address */}
-            <div className="p-5 rounded-2xl bg-[#FAF7F2] border border-[#EAE5DB] space-y-3">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setDetailSection(2)}
+              onKeyDown={(e) => e.key === 'Enter' && setDetailSection(2)}
+              className="p-5 rounded-2xl bg-[#FAF7F2] border border-[#EAE5DB] space-y-3 cursor-pointer hover:border-[#2E4D34]/40 hover:shadow-md transition"
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-[#2E4D34] uppercase tracking-wider">
                   <MapPin className="w-4 h-4" />
@@ -1559,7 +1640,10 @@ export const VendorOnboardingPage: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(2)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentStep(2);
+                  }}
                   className="inline-flex items-center gap-1 text-xs text-[#2E4D34] hover:underline font-bold"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
@@ -1579,7 +1663,13 @@ export const VendorOnboardingPage: React.FC = () => {
             </div>
 
             {/* Summary Card 3: Verification (KYC) */}
-            <div className="p-5 rounded-2xl bg-[#FAF7F2] border border-[#EAE5DB] space-y-3">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setDetailSection(3)}
+              onKeyDown={(e) => e.key === 'Enter' && setDetailSection(3)}
+              className="p-5 rounded-2xl bg-[#FAF7F2] border border-[#EAE5DB] space-y-3 cursor-pointer hover:border-[#2E4D34]/40 hover:shadow-md transition"
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-[#2E4D34] uppercase tracking-wider">
                   <ShieldCheck className="w-4 h-4" />
@@ -1587,7 +1677,10 @@ export const VendorOnboardingPage: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(3)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentStep(3);
+                  }}
                   className="inline-flex items-center gap-1 text-xs text-[#2E4D34] hover:underline font-bold"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
@@ -1599,7 +1692,7 @@ export const VendorOnboardingPage: React.FC = () => {
                 <div>
                   <span className="text-[#7A8A7C]">PAN:</span>{' '}
                   <span className="font-mono font-semibold">
-                    {panNumber ? `${panNumber.slice(0, 5)}••••${panNumber.slice(-1)}` : '—'}
+                    {panNumber ? panNumber.toUpperCase() : '—'}
                   </span>
                 </div>
                 <div>
@@ -1613,14 +1706,20 @@ export const VendorOnboardingPage: React.FC = () => {
                 <div>
                   <span className="text-[#7A8A7C]">Documents Attached:</span>{' '}
                   <span className="text-[#2E4D34] font-semibold">
-                    {[panDoc, idDoc, addressDoc, artisanCardDoc].filter(Boolean).length} Verified Files
+                    {[panDoc, idDoc, addressDoc, artisanCardDoc].filter(Boolean).length} Files Attached
                   </span>
                 </div>
               </div>
             </div>
 
             {/* Summary Card 4: Bank Details */}
-            <div className="p-5 rounded-2xl bg-[#FAF7F2] border border-[#EAE5DB] space-y-3">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setDetailSection(4)}
+              onKeyDown={(e) => e.key === 'Enter' && setDetailSection(4)}
+              className="p-5 rounded-2xl bg-[#FAF7F2] border border-[#EAE5DB] space-y-3 cursor-pointer hover:border-[#2E4D34]/40 hover:shadow-md transition"
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-[#2E4D34] uppercase tracking-wider">
                   <Building2 className="w-4 h-4" />
@@ -1628,7 +1727,10 @@ export const VendorOnboardingPage: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(4)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentStep(4);
+                  }}
                   className="inline-flex items-center gap-1 text-xs text-[#2E4D34] hover:underline font-bold"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
@@ -1654,6 +1756,9 @@ export const VendorOnboardingPage: React.FC = () => {
                   <span className="text-[#7A8A7C]">IFSC:</span> <span className="font-mono">{ifscCode}</span>
                 </div>
               </div>
+              <p className="text-[10px] text-[#8E9B90] inline-flex items-center gap-1">
+                <Eye className="w-3 h-3" /> Click any card to view full details
+              </p>
             </div>
 
             {/* Seller Agreement Acceptance Checkbox */}
@@ -1684,6 +1789,15 @@ export const VendorOnboardingPage: React.FC = () => {
         {/* =================================================================== */}
         {/* BOTTOM NAVIGATION ACTIONS                                           */}
         {/* =================================================================== */}
+        {generalError && (
+          <div
+            role="alert"
+            className="p-3.5 rounded-2xl bg-[#FFF5F5] border border-[#FCA5A5] text-xs text-[#B91C1C] flex items-start gap-2 mt-6"
+          >
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span className="whitespace-pre-line">{generalError}</span>
+          </div>
+        )}
         <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-4 pt-6 border-t border-[#EAE5DB]">
           {/* Back button */}
           {currentStep > 1 ? (
@@ -1741,6 +1855,237 @@ export const VendorOnboardingPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* ===================================================================== */}
+      {/* SECTION DETAIL POPUP (Step 5 cards)                                   */}
+      {/* ===================================================================== */}
+      {detailSection && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setDetailSection(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-[#EAE5DB] shadow-2xl overflow-hidden animate-scaleUp"
+          >
+            <div className="px-6 py-4 border-b border-[#EAE5DB] bg-[#FDFCF9] flex items-center justify-between shrink-0">
+              <h3 className="font-serif text-lg font-bold text-[#223B28]">
+                {
+                  {
+                    1: '1. Store Identity',
+                    2: '2. Courier Pickup Address',
+                    3: '3. KYC Credentials',
+                    4: '4. Payout Bank Account',
+                  }[detailSection]
+                }
+              </h3>
+              <button
+                type="button"
+                onClick={() => setDetailSection(null)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-5 text-sm text-[#223B28]">
+              {(() => {
+                const Row = ({ label, value, mono }: { label: string; value?: React.ReactNode; mono?: boolean }) => (
+                  <div className="grid grid-cols-3 gap-3 py-2 border-b border-[#F0EDE6] last:border-0">
+                    <span className="text-xs text-[#7A8A7C] font-semibold uppercase tracking-wider">{label}</span>
+                    <span className={`col-span-2 text-sm break-words ${mono ? 'font-mono' : ''}`}>{value || '—'}</span>
+                  </div>
+                );
+                const DocTile = ({ label, doc }: { label: string; doc: UploadedDocument | null }) => {
+                  const url = doc ? docUrls[doc.id] : undefined;
+                  const isPdf = doc ? doc.type === 'application/pdf' || /\.pdf$/i.test(doc.filename || '') : false;
+                  return (
+                    <div className="rounded-2xl border border-[#EAE5DB] bg-[#FAF7F2] p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-[#223B28]">{label}</span>
+                        {url && (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] font-semibold text-[#2E4D34] hover:underline inline-flex items-center gap-1"
+                          >
+                            <Eye className="w-3 h-3" /> Open
+                          </a>
+                        )}
+                      </div>
+                      {!doc ? (
+                        <p className="text-xs text-[#8E9B90]">Not uploaded</p>
+                      ) : (
+                        <>
+                          <div className="h-36 rounded-xl bg-white border border-[#EAE5DB] overflow-hidden flex items-center justify-center">
+                            {url && !isPdf ? (
+                              <img src={url} alt={label} className="w-full h-full object-contain" />
+                            ) : (
+                              <div className="flex flex-col items-center text-[#2E4D34] gap-1">
+                                <FileText className="w-8 h-8" />
+                                <span className="text-[11px]">{isPdf ? 'PDF document' : 'Loading preview…'}</span>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-[#7A8A7C] truncate">
+                            {doc.filename} {doc.size ? `• ${(doc.size / 1024).toFixed(0)} KB` : ''}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  );
+                };
+
+                if (detailSection === 1) {
+                  return (
+                    <>
+                      <div>
+                        <Row label="Store Name" value={storeName} />
+                        <Row label="Store URL" value={`chillyflakes.in/store/${storeSlug || '—'}`} mono />
+                        <Row label="Seller Type" value={<span className="capitalize">{sellerType.replace(/_/g, ' ')}</span>} />
+                        <Row label="Languages" value={selectedLanguages.join(', ')} />
+                        <Row label="Short Description" value={shortDescription} />
+                        <Row label="Seller Story" value={sellerStory && <span className="whitespace-pre-line">{sellerStory}</span>} />
+                        <Row label="Instagram" value={instagram} />
+                        <Row label="Facebook" value={facebook} />
+                        <Row label="Website" value={website} />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <DocTile label="Store Logo" doc={logoDoc} />
+                        <DocTile label="Store Banner" doc={bannerDoc} />
+                      </div>
+                    </>
+                  );
+                }
+                if (detailSection === 2) {
+                  return (
+                    <>
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-[#2E4D34] mb-1">Pickup Address</p>
+                        <Row label="Contact Person" value={pickupContact} />
+                        <Row label="Courier Mobile" value={pickupMobile} mono />
+                        <Row label="Address Line 1" value={pickupLine1} />
+                        <Row label="Address Line 2" value={pickupLine2} />
+                        <Row label="City" value={pickupCity} />
+                        <Row label="State" value={pickupState} />
+                        <Row label="Pincode" value={pickupPincode} mono />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-[#2E4D34] mb-1">Business Address</p>
+                        {sameAsBusiness ? (
+                          <p className="text-xs text-[#637365]">Same as pickup address</p>
+                        ) : (
+                          <>
+                            <Row label="Contact Person" value={bizContact} />
+                            <Row label="Mobile" value={bizMobile} mono />
+                            <Row label="Address" value={[bizLine1, bizLine2].filter(Boolean).join(', ')} />
+                            <Row label="City / State" value={[bizCity, bizState].filter(Boolean).join(', ')} />
+                            <Row label="Pincode" value={bizPincode} mono />
+                          </>
+                        )}
+                      </div>
+                    </>
+                  );
+                }
+                if (detailSection === 3) {
+                  return (
+                    <>
+                      <div>
+                        <Row label="PAN Number" value={panNumber.toUpperCase()} mono />
+                        <Row label="GSTIN" value={gstin.toUpperCase() || 'Exempt / Not provided'} mono />
+                        <Row label="ID Proof Type" value={<span className="capitalize">{idType.replace(/_/g, ' ')}</span>} />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <DocTile label="PAN Card" doc={panDoc} />
+                        <DocTile label="Identity Proof" doc={idDoc} />
+                        <DocTile label="Address Proof" doc={addressDoc} />
+                        <DocTile label="Artisan Card (optional)" doc={artisanCardDoc} />
+                      </div>
+                    </>
+                  );
+                }
+                return (
+                  <>
+                    <div>
+                      <Row label="Account Holder" value={accHolderName} />
+                      <Row
+                        label="Account Number"
+                        value={accNumber || existingMaskedAcc}
+                        mono
+                      />
+                      <Row label="Account Type" value={<span className="capitalize">{accType}</span>} />
+                      <Row label="IFSC Code" value={ifscCode.toUpperCase()} mono />
+                      <Row label="Bank" value={bankInfo?.bank} />
+                      <Row label="Branch" value={bankInfo?.branch} />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <DocTile label="Cancelled Cheque / Passbook" doc={chequeDoc} />
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            <div className="px-6 py-4 border-t border-[#EAE5DB] bg-[#FAF7F2] flex items-center justify-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setDetailSection(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#5F6D61] hover:bg-white"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const s = detailSection;
+                  setDetailSection(null);
+                  setCurrentStep(s);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#2E4D34] text-white text-xs font-semibold hover:bg-[#233B28]"
+              >
+                <Edit3 className="w-3.5 h-3.5" /> Edit this section
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* SUBMIT SUCCESS POPUP                                                  */}
+      {/* ===================================================================== */}
+      {submitSuccess && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" className="bg-white rounded-3xl max-w-md w-full border border-emerald-200 shadow-2xl overflow-hidden animate-scaleUp text-center">
+            <div className="p-8 space-y-4">
+              <div className="mx-auto w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+                <CheckCircle2 className="w-9 h-9 text-emerald-600" />
+              </div>
+              <h2 className="font-serif text-2xl font-bold text-[#223B28]">Application Submitted!</h2>
+              <p className="text-sm text-[#5F6D61] leading-relaxed">
+                Thank you{user?.full_name ? `, ${user.full_name}` : ''}. Your store application has been sent to our compliance team
+                for verification. Reviews usually complete within 24–48 hours.
+              </p>
+              <p className="text-xs text-[#8E9B90]">
+                You'll get a notification here and an email at <strong>{user?.email}</strong> once a decision is made.
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-[#FAF7F2] border-t border-[#EAE5DB]">
+              <button
+                type="button"
+                onClick={() => void finishSubmission()}
+                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#2E4D34] text-white text-sm font-semibold hover:bg-[#233B28]"
+              >
+                View Application Status <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

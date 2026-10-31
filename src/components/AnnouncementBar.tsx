@@ -5,7 +5,7 @@ import { useStore } from '../context/StoreContext';
 import { LanguageSwitcher } from './ui/LanguageSwitcher';
 
 export const AnnouncementBar: React.FC = () => {
-  const { cartCount, setIsCartOpen, setIsLoginOpen, user } = useStore();
+  const { cartCount, setIsCartOpen, user } = useStore();
 
   return (
     <div className="bg-[#243F29] text-[#E8ECE6] text-[10px] sm:text-[11px] font-normal py-1 px-3 sm:px-4 border-b border-[#1C3320] relative z-[60]">
@@ -32,19 +32,19 @@ export const AnnouncementBar: React.FC = () => {
             <span className="text-white font-medium truncate max-w-[100px]">Hello, {user.name}</span>
           ) : (
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <button 
-                onClick={() => setIsLoginOpen(true)}
+              <Link 
+                to="/login"
                 className="hover:text-white transition-colors hover:underline"
               >
                 Login
-              </button>
+              </Link>
               <span className="text-[#527357]">|</span>
-              <button 
-                onClick={() => setIsLoginOpen(true)}
+              <Link 
+                to="/register"
                 className="hover:text-white transition-colors hover:underline"
               >
                 Register
-              </button>
+              </Link>
               <span className="text-[#527357] hidden md:inline">|</span>
               <Link 
                 to="/vendor/register" 

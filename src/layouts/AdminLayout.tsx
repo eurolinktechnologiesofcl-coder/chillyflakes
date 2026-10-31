@@ -5,12 +5,10 @@ import {
   CheckSquare,
   Users,
   Store,
-  ShieldCheck,
   Layers,
   FileText,
   ShoppingBag,
   CreditCard,
-  FileEdit,
   Settings,
   Bell,
   LogOut,
@@ -19,12 +17,20 @@ import {
   ChevronDown,
   ChevronRight,
   Sparkles,
+  Package,
+  Tag,
+  Calendar,
+  LifeBuoy,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { axiosClient } from '../api/client';
 import { Logo } from '../components/Logo';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { usePermission } from '../features/admin/hooks/usePermission';
 import { useAdminProducts } from '../features/admin/hooks/useAdminProducts';
 import { useAdminSellers } from '../features/admin/hooks/useAdminSellers';
+import { useAdminOrders } from '../features/admin/hooks/useAdminOrders';
+import { useAdminFinance } from '../features/admin/hooks/useAdminFinance';
 import { ToastProvider } from '../components/vendor/Toast';
 import type { AdminModule } from '../types/admin';
 
@@ -66,7 +72,46 @@ export const AdminLayout: React.FC = () => {
   const { data: sellersData } = useAdminSellers({ status: 'under_review', page_size: 1 });
   const pendingSellerCount = sellersData?.tab_counts?.under_review ?? 0;
 
-  const totalAlertCount = pendingProductCount + pendingSellerCount;
+  // Live pending return claims and orders
+  const { data: ordersData } = useAdminOrders({ tab: 'return_requested', page_size: 1 });
+  const pendingReturnCount = ordersData?.tab_counts?.return_requested ?? 0;
+  const pendingOrderCount = ordersData?.tab_counts?.pending_dispatch ?? 0;
+
+  // Live pending service appointments
+  const { data: bookingsData } = useQuery<{ tab_counts?: { pending?: number } }>({
+    queryKey: ['admin-pending-bookings'],
+    queryFn: async () => {
+      try {
+        const res = await axiosClient.get('/api/v1/admin/services/bookings/', { params: { limit: 1 } });
+        return res.data;
+      } catch {
+        return { tab_counts: { pending: 0 } };
+      }
+    },
+    refetchInterval: 15000,
+  });
+  const pendingBookingCount = bookingsData?.tab_counts?.pending ?? 0;
+
+  // Live pending payouts
+  const { data: financeData } = useAdminFinance();
+  const pendingPayoutCount = financeData?.summary?.payout_batches_pending ?? 0;
+
+  // Live open seller support tickets
+  const { data: ticketsData } = useQuery<{ open_count?: number; tickets?: any[] }>({
+    queryKey: ['admin-open-tickets'],
+    queryFn: async () => {
+      try {
+        const res = await axiosClient.get('/api/v1/admin/support/tickets/', { params: { status: 'open' } });
+        return res.data;
+      } catch {
+        return { open_count: 0, tickets: [] };
+      }
+    },
+    refetchInterval: 15000,
+  });
+  const pendingTicketCount = ticketsData?.open_count ?? (Array.isArray(ticketsData?.tickets) ? ticketsData.tickets.length : 0);
+
+  const totalAlertCount = pendingProductCount + pendingSellerCount + pendingReturnCount + pendingPayoutCount + pendingOrderCount + pendingBookingCount + pendingTicketCount;
 
   // Close menus on outside click
   useEffect(() => {
@@ -130,10 +175,10 @@ export const AdminLayout: React.FC = () => {
             badgeColor: 'bg-[#FAF3E0] text-[#8A5A00] border-[#F3E2B8]',
           },
           {
-            label: 'Staff & Roles',
-            path: '/admin/people/staff',
-            icon: <ShieldCheck className="w-4 h-4" />,
-            module: 'staff_roles',
+            label: 'Vendor Support Desk',
+            path: '/admin/support',
+            icon: <LifeBuoy className="w-4 h-4" />,
+            module: 'sellers',
           },
         ],
       },
@@ -141,6 +186,12 @@ export const AdminLayout: React.FC = () => {
         id: 'catalog',
         label: 'Catalog',
         items: [
+          {
+            label: 'All Products',
+            path: '/admin/products',
+            icon: <Package className="w-4 h-4" />,
+            module: 'products',
+          },
           {
             label: 'Product Reviews',
             path: '/admin/product-reviews',
@@ -154,6 +205,12 @@ export const AdminLayout: React.FC = () => {
             path: '/admin/categories',
             icon: <Layers className="w-4 h-4" />,
             module: 'categories',
+          },
+          {
+            label: 'Services',
+            path: '/admin/services',
+            icon: <Sparkles className="w-4 h-4" />,
+            module: 'products',
           },
         ],
       },
@@ -170,45 +227,41 @@ export const AdminLayout: React.FC = () => {
         ],
       },
       {
-        id: 'coming_soon',
-        label: 'Operations & Settings',
+        id: 'operations',
+        label: 'Operations & Governance',
         items: [
           {
             label: 'Orders & Returns',
             path: '/admin/orders',
             icon: <ShoppingBag className="w-4 h-4" />,
-            badge: 'Soon',
-            badgeColor: 'bg-[#F4F4F5] text-[#71717A] border-[#E4E4E7]',
-            isPlaceholder: true,
+            module: 'orders',
+            badge: pendingReturnCount > 0 ? `${pendingReturnCount} claims` : undefined,
+            badgeColor: 'bg-rose-50 text-rose-800 border-rose-200',
           },
           {
             label: 'Finance & Payouts',
             path: '/admin/finance',
             icon: <CreditCard className="w-4 h-4" />,
-            badge: 'Soon',
-            badgeColor: 'bg-[#F4F4F5] text-[#71717A] border-[#E4E4E7]',
-            isPlaceholder: true,
+            module: 'payouts',
+            badge: pendingPayoutCount > 0 ? `${pendingPayoutCount} pending` : undefined,
+            badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
           },
           {
-            label: 'Content & CMS',
-            path: '/admin/content',
-            icon: <FileEdit className="w-4 h-4" />,
-            badge: 'Soon',
-            badgeColor: 'bg-[#F4F4F5] text-[#71717A] border-[#E4E4E7]',
-            isPlaceholder: true,
+            label: 'Coupons & Promos',
+            path: '/admin/coupons',
+            icon: <Tag className="w-4 h-4" />,
+            module: 'settings',
           },
           {
             label: 'Store Settings',
             path: '/admin/settings',
             icon: <Settings className="w-4 h-4" />,
-            badge: 'Soon',
-            badgeColor: 'bg-[#F4F4F5] text-[#71717A] border-[#E4E4E7]',
-            isPlaceholder: true,
+            module: 'settings',
           },
         ],
       },
     ];
-  }, [pendingProductCount, pendingSellerCount]);
+  }, [pendingProductCount, pendingSellerCount, pendingReturnCount, pendingPayoutCount]);
 
   // Filter groups and items based on permissions
   const visibleGroups = useMemo(() => {
@@ -339,13 +392,13 @@ export const AdminLayout: React.FC = () => {
                                 : 'text-[#5F6D61] hover:text-[#223B28] hover:bg-[#FAF7F2]'
                             }`}
                           >
-                            <div className="flex items-center gap-2.5">
+                            <div className="flex items-center gap-2.5 min-w-0 pr-1">
                               {item.icon}
-                              <span>{item.label}</span>
+                              <span className="truncate">{item.label}</span>
                             </div>
                             {item.badge && (
                               <span
-                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                                className={`shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full border leading-tight ${
                                   isExactActive
                                     ? 'bg-white/20 text-white border-white/30'
                                     : item.badgeColor || 'bg-[#FAF3E0] text-[#8A5A00] border-[#F3E2B8]'
@@ -469,12 +522,12 @@ export const AdminLayout: React.FC = () => {
                             }`
                           }
                         >
-                          <div className="flex items-center gap-2.5">
+                          <div className="flex items-center gap-2.5 min-w-0 pr-1">
                             {item.icon}
-                            <span>{item.label}</span>
+                            <span className="truncate">{item.label}</span>
                           </div>
                           {item.badge && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FAF3E0] text-[#8A5A00] border border-[#F3E2B8]">
+                            <span className="shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FAF3E0] text-[#8A5A00] border border-[#F3E2B8] leading-tight">
                               {item.badge}
                             </span>
                           )}
@@ -514,26 +567,18 @@ export const AdminLayout: React.FC = () => {
           </nav>
 
           {/* Header Right Actions */}
-          <div className="flex items-center gap-4">
-            {/* Environment Badge */}
-            {import.meta.env.DEV && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                Development
-              </span>
-            )}
-
+          <div className="flex items-center gap-3">
             {/* Notification Bell with Dropdown */}
             <div className="relative" ref={notifRef}>
               <button
                 type="button"
                 onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
-                className="relative p-2 text-[#5F6D61] hover:text-[#223B28] hover:bg-[#FAF7F2] rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-[#2E4D34]"
+                className="relative p-2.5 bg-white border border-[#D1DDD0] text-[#223B28] hover:border-[#2E4D34] hover:bg-[#FAF7F2] rounded-xl transition-all shadow-xs focus:outline-none focus:ring-2 focus:ring-[#2E4D34] cursor-pointer"
                 aria-label="View notifications"
               >
-                <Bell className="w-5 h-5" />
+                <Bell className="w-5 h-5 text-[#223B28]" />
                 {totalAlertCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-[#9E2A2B] text-[9px] font-bold text-white shadow-2xs">
+                  <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-[#B3261E] text-[10px] font-bold text-white shadow-xs border-2 border-white">
                     {totalAlertCount}
                   </span>
                 )}
@@ -587,6 +632,66 @@ export const AdminLayout: React.FC = () => {
                           </p>
                           <p className="text-[11px] text-[#5F6D61]">
                             Items submitted by sellers awaiting publication approval.
+                          </p>
+                        </div>
+                      </Link>
+                    )}
+
+                    {pendingOrderCount > 0 && (
+                      <Link
+                        to="/admin/orders"
+                        onClick={() => setNotifDropdownOpen(false)}
+                        className="flex items-start gap-3 px-4 py-3 hover:bg-[#FAF7F2] transition-colors"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 shrink-0 mt-0.5">
+                          <ShoppingBag className="w-4 h-4" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-semibold text-[#223B28]">
+                            {pendingOrderCount} orders pending dispatch
+                          </p>
+                          <p className="text-[11px] text-[#5F6D61]">
+                            New customer orders placed awaiting packaging & courier dispatch.
+                          </p>
+                        </div>
+                      </Link>
+                    )}
+
+                    {pendingBookingCount > 0 && (
+                      <Link
+                        to="/admin/services"
+                        onClick={() => setNotifDropdownOpen(false)}
+                        className="flex items-start gap-3 px-4 py-3 hover:bg-[#FAF7F2] transition-colors"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-[#2E4D34] shrink-0 mt-0.5">
+                          <Calendar className="w-4 h-4" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-semibold text-[#223B28]">
+                            {pendingBookingCount} service bookings requested
+                          </p>
+                          <p className="text-[11px] text-[#5F6D61]">
+                            Client appointments awaiting review and confirmation.
+                          </p>
+                        </div>
+                      </Link>
+                    )}
+
+                    {pendingTicketCount > 0 && (
+                      <Link
+                        to="/admin/support"
+                        onClick={() => setNotifDropdownOpen(false)}
+                        className="flex items-start gap-3 px-4 py-3 hover:bg-[#FAF7F2] transition-colors"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center text-[#9E2A2B] shrink-0 mt-0.5">
+                          <LifeBuoy className="w-4 h-4" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-semibold text-[#223B28]">
+                            {pendingTicketCount} seller support ticket{pendingTicketCount > 1 ? 's' : ''} open
+                          </p>
+                          <p className="text-[11px] text-[#5F6D61]">
+                            Artisan queries and urgent seller tickets awaiting resolution.
                           </p>
                         </div>
                       </Link>

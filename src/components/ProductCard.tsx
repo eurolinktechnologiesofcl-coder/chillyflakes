@@ -88,15 +88,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             {product.name}
           </h3>
 
-          {/* Rating Pill + Review Count */}
           <div className="flex items-center gap-2 mt-1.5">
-            <span className="inline-flex items-center gap-1 bg-[#FAF0ED] text-[#D82C20] text-[11px] font-bold px-2 py-0.5 rounded-full border border-[#FAC7C3]">
-              <span>{product.rating}</span>
-              <Star className="w-2.5 h-2.5 fill-current text-[#D9A34C]" />
-            </span>
-            <span className="text-[11px] text-[#7C8B7E] font-normal">
-              ({product.reviewsCount.toLocaleString()})
-            </span>
+            {Boolean(product.rating && product.rating > 0 && product.reviewsCount && product.reviewsCount > 0) && (
+              <>
+                <span className="inline-flex items-center gap-1 bg-[#FAF0ED] text-[#D82C20] text-[11px] font-bold px-2 py-0.5 rounded-full border border-[#FAC7C3]">
+                  <span>{product.rating}</span>
+                  <Star className="w-2.5 h-2.5 fill-current text-[#D9A34C]" />
+                </span>
+                <span className="text-[11px] text-[#7C8B7E] font-normal">
+                  ({product.reviewsCount.toLocaleString()})
+                </span>
+              </>
+            )}
             
             {/* Assured Badge */}
             {product.isAssured && (

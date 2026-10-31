@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   X,
   Package,
+  Trash2,
 } from 'lucide-react';
 import { useAdminCategories } from '../hooks/useAdminCategories';
 import { PageHeader } from '../../../components/vendor/PageHeader';
@@ -29,6 +30,7 @@ export const AdminCategoriesPage: React.FC = () => {
     createCategoryMutation,
     updateCategoryMutation,
     addSubcategoryMutation,
+    deleteCategoryMutation,
   } = useAdminCategories();
 
   // Search & Filter state
@@ -51,6 +53,7 @@ export const AdminCategoriesPage: React.FC = () => {
   const [subNameError, setSubNameError] = useState<string | null>(null);
 
   const [toggleStatusTarget, setToggleStatusTarget] = useState<AdminCategory | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminCategory | null>(null);
 
   // Auto-generate slug when name changes in Add Modal
   const handleNameChange = (val: string) => {
@@ -196,6 +199,20 @@ export const AdminCategoriesPage: React.FC = () => {
       toast.error('Failed to update category status.');
     }
   };
+
+  // Handle Delete Category
+  const handleDeleteCategory = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteCategoryMutation.mutateAsync(deleteTarget.id);
+      toast.success(`Category "${deleteTarget.name}" deleted successfully.`);
+      setDeleteTarget(null);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to delete category.';
+      toast.error(msg);
+    }
+  };
+
 
   return (
     <div className="space-y-6 pb-20 animate-fadeIn">
@@ -370,6 +387,14 @@ export const AdminCategoriesPage: React.FC = () => {
                             title={cat.is_active ? 'Deactivate Category' : 'Activate Category'}
                           >
                             <Power className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(cat)}
+                            className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Delete Category"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -661,6 +686,24 @@ export const AdminCategoriesPage: React.FC = () => {
         confirmText={toggleStatusTarget?.is_active ? 'Deactivate' : 'Activate'}
         isDanger={Boolean(toggleStatusTarget?.is_active)}
         isLoading={updateCategoryMutation.isPending}
+      />
+
+      {/* ======================================================== */}
+      {/* DELETE CATEGORY CONFIRM DIALOG */}
+      {/* ======================================================== */}
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteCategory}
+        title={`Delete Category "${deleteTarget?.name}"`}
+        message={
+          (deleteTarget?.product_count ?? 0) > 0
+            ? `Warning: This category contains ${deleteTarget?.product_count} product(s). You must reassign or remove all products before deleting it.`
+            : `Are you sure you want to permanently delete category "${deleteTarget?.name}"? This action cannot be undone.`
+        }
+        confirmText="Delete Category"
+        isDanger={true}
+        isLoading={deleteCategoryMutation.isPending}
       />
     </div>
   );

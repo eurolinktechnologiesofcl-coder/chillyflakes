@@ -1,6 +1,11 @@
 import { http, HttpResponse, delay, passthrough } from 'msw';
-import { adminHandlers } from './adminHandlers';
+import { adminHandlers, currentAdminUser } from './adminHandlers';
 import { onboardingHandlers } from './onboardingHandlers';
+import { buyerAuthHandlers } from './buyerAuthHandlers';
+import { loadPersisted, registerPersisted } from './persist';
+import { getPlatformSettings } from '../utils/platformSync';
+import { products as initialProducts } from '../data/products';
+import type { Product } from '../types';
 import {
   ALLOWED_CATEGORY_IDS,
   type VendorRegisterPayload,
@@ -135,7 +140,6 @@ import type {
 import type {
   AdminProductDetail,
   AdminProductReviewLog,
-  AdminUser,
   RejectReasonCode,
   AdminProductColorGallery,
   AdminProductVariant,
@@ -144,27 +148,26 @@ import type {
   AdminApprovePayload,
 } from '../types/adminProduct';
 
-export let dynamicVendorCategories: VendorCategoryWithAttributes[] = JSON.parse(
-  JSON.stringify(vendorCategoriesWithAttributes)
+export let dynamicVendorCategories: VendorCategoryWithAttributes[] = loadPersisted<VendorCategoryWithAttributes[]>(
+  'vendor_categories',
+  JSON.parse(JSON.stringify(vendorCategoriesWithAttributes))
 );
+registerPersisted('vendor_categories', () => dynamicVendorCategories);
 
-export let mockCategories: AdminCategory[] = dynamicVendorCategories.map((c) => ({
-  id: c.id,
-  name: c.name,
-  slug: c.slug || c.id,
-  description: c.description,
-  subcategories: [...c.subcategories],
-  is_active: c.is_active ?? true,
-  product_count: 0,
-  created_at: '2026-08-01T00:00:00Z',
-}));
-
-export let mockCurrentAdmin: AdminUser | null = {
-  id: 'admin_1',
-  email: 'admin@test.com',
-  name: 'Platform Super Admin',
-  role: 'admin',
-};
+export let mockCategories: AdminCategory[] = loadPersisted<AdminCategory[]>(
+  'admin_categories',
+  dynamicVendorCategories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug || c.id,
+    description: c.description,
+    subcategories: [...c.subcategories],
+    is_active: c.is_active ?? true,
+    product_count: 0,
+    created_at: '2026-08-01T00:00:00Z',
+  }))
+);
+registerPersisted('admin_categories', () => mockCategories);
 
 export let mockVendorAlerts: Array<{
   id: string;
@@ -172,36 +175,7 @@ export let mockVendorAlerts: Array<{
   message: string;
   type: 'info' | 'warning' | 'success';
   created_at: string;
-}> = [
-  {
-    id: 'alt_1',
-    title: 'Payout Processed',
-    message: 'Your weekly payout of ₹37,300 has been initiated to your registered bank account.',
-    type: 'success',
-    created_at: '2026-10-18T10:00:00Z',
-  },
-  {
-    id: 'alt_2',
-    title: 'New Workshop Booking',
-    message: '2 conscious buyers registered for your upcoming Terracotta Pottering Workshop.',
-    type: 'info',
-    created_at: '2026-10-17T15:30:00Z',
-  },
-  {
-    id: 'alt_3',
-    title: 'Low Stock Warning',
-    message: '4 artisan products have fallen below your minimum inventory threshold.',
-    type: 'warning',
-    created_at: '2026-10-17T09:00:00Z',
-  },
-  {
-    id: 'alt_4',
-    title: 'Product Listing Approved',
-    message: "Item 'Natural Forest Honey 250g' has been approved and is now live on ChillyFlakes.",
-    type: 'info',
-    created_at: '2026-10-16T12:00:00Z',
-  },
-];
+}> = [];
 
 export type MockProductRecord = VendorProduct & AdminProductDetail;
 
@@ -331,686 +305,8 @@ export function createProductRecord(
   };
 }
 
-export const mockVendorProducts: MockProductRecord[] = [
-  createProductRecord({
-    id: 'prod_1',
-    title: 'Handcrafted Terracotta Clay Water Carafe',
-    sku: 'TER-CAR-01',
-    main_image_url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'home-living', name: 'Home & Living' },
-    price_paise: 85000,
-    total_stock: 18,
-    colors: [
-      { name: 'Terracotta Red', hex: '#C85A32' },
-      { name: 'Earthy Brown', hex: '#6E473B' },
-    ],
-    status: 'approved',
-    wholesale_enabled: true,
-    created_at: '2026-09-10T10:00:00Z',
-    updated_at: '2026-10-18T16:30:00Z',
-    submitted_at: '2026-09-10T11:00:00Z',
-    review_history: [
-      {
-        id: 'rev_101',
-        reviewed_by: 'Platform Super Admin',
-        decision: 'approved',
-        created_at: '2026-09-11T14:30:00Z',
-      },
-    ],
-  }),
-  createProductRecord({
-    id: 'prod_2',
-    title: 'Cold-Pressed Organic Coconut Oil 500ml',
-    sku: 'NAT-OIL-02',
-    main_image_url: '/botanical-care-banner.jpg',
-    category: { id: 'natural-products', name: 'Natural Products' },
-    price_paise: 42000,
-    total_stock: 4,
-    colors: [],
-    status: 'approved',
-    wholesale_enabled: false,
-    created_at: '2026-09-12T11:00:00Z',
-    updated_at: '2026-10-18T14:20:00Z',
-    seller: {
-      seller_id: 'v_102',
-      store_name: 'Botanical Herbs & Soaps',
-      seller_name: 'Ananya Sharma',
-      email: 'ananya@botanicalherbs.in',
-      mobile_masked: '+91 98765 •••••',
-      seller_status: 'approved',
-    },
-  }),
-  createProductRecord({
-    id: 'prod_3',
-    title: 'Hand-Engraved Silver Temple Earrings',
-    sku: 'JWL-SLV-03',
-    main_image_url: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'jewelry', name: 'Jewelry' },
-    price_paise: 285000,
-    total_stock: 12,
-    colors: [
-      { name: 'Oxidized Silver', hex: '#B8C0C8' },
-      { name: 'Antique Gold', hex: '#D4AF37' },
-    ],
-    status: 'approved',
-    wholesale_enabled: true,
-    created_at: '2026-09-15T09:30:00Z',
-    updated_at: '2026-10-17T18:40:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_4',
-    title: 'Handwoven Khadi Cotton Kurta - Indigo',
-    sku: 'CLO-KHD-04',
-    main_image_url: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'clothes-fashion', name: 'Clothes & Fashion' },
-    price_paise: 165000,
-    total_stock: 3,
-    colors: [
-      { name: 'Indigo Blue', hex: '#2A4B7C' },
-      { name: 'Natural Off-White', hex: '#FAF6EE' },
-      { name: 'Madder Red', hex: '#9E2A2B' },
-    ],
-    status: 'approved',
-    wholesale_enabled: false,
-    created_at: '2026-09-18T14:15:00Z',
-    updated_at: '2026-10-17T12:00:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_5',
-    title: 'Wild Raw Forest Honey 250g',
-    sku: 'RET-HNY-05',
-    main_image_url: '/retail-products.jpg',
-    category: { id: 'retail-products', name: 'Retail Products' },
-    price_paise: 38000,
-    total_stock: 35,
-    colors: [{ name: 'Amber Gold', hex: '#E29D38' }],
-    status: 'approved',
-    wholesale_enabled: true,
-    created_at: '2026-09-20T08:00:00Z',
-    updated_at: '2026-10-16T15:20:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_6',
-    title: 'Ayurvedic Kumkumadi Botanical Facial Salve',
-    sku: 'NAT-SLV-06',
-    main_image_url: '/botanical-care-banner.jpg',
-    category: { id: 'natural-products', name: 'Natural Products' },
-    price_paise: 65000,
-    total_stock: 20,
-    colors: [],
-    status: 'pending_review',
-    wholesale_enabled: false,
-    created_at: '2026-10-15T10:00:00Z',
-    updated_at: '2026-10-18T09:45:00Z',
-    submitted_at: '2026-10-15T10:00:00Z',
-    seller: {
-      seller_id: 'v_102',
-      store_name: 'Botanical Herbs & Soaps',
-      seller_name: 'Ananya Sharma',
-      email: 'ananya@botanicalherbs.in',
-      mobile_masked: '+91 98765 •••••',
-      seller_status: 'approved',
-    },
-  }),
-  createProductRecord({
-    id: 'prod_7',
-    title: 'Traditional Brass Filter Coffee Maker',
-    sku: 'HOM-BRS-07',
-    main_image_url: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'home-living', name: 'Home & Living' },
-    price_paise: 129900,
-    total_stock: 8,
-    colors: [
-      { name: 'Polished Brass', hex: '#D4AF37' },
-      { name: 'Matte Brass', hex: '#BFA054' },
-    ],
-    status: 'approved',
-    wholesale_enabled: true,
-    created_at: '2026-09-25T16:20:00Z',
-    updated_at: '2026-10-15T11:10:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_8',
-    title: 'Natural Vetiver & Sandalwood Handcrafted Soap',
-    sku: 'HND-SOP-08',
-    main_image_url: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'handmade-products', name: 'Handmade Products' },
-    price_paise: 24000,
-    total_stock: 45,
-    colors: [
-      { name: 'Herbal Ochre', hex: '#C29B38' },
-      { name: 'Sage Green', hex: '#7A9A7B' },
-    ],
-    status: 'approved',
-    wholesale_enabled: true,
-    created_at: '2026-09-28T13:40:00Z',
-    updated_at: '2026-10-14T17:30:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_9',
-    title: 'Ancient Kerala Murals: Art & History Guide',
-    sku: 'BOK-MRL-09',
-    main_image_url: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'books', name: 'Books' },
-    price_paise: 95000,
-    total_stock: 15,
-    colors: [],
-    status: 'approved',
-    wholesale_enabled: false,
-    created_at: '2026-10-01T09:00:00Z',
-    updated_at: '2026-10-14T10:15:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_10',
-    title: 'Pure Castor Oil Hair Treatment 200ml',
-    sku: 'NAT-CST-10',
-    main_image_url: '/botanical-care-banner.jpg',
-    category: { id: 'natural-products', name: 'Natural Products' },
-    price_paise: 31000,
-    total_stock: 50,
-    colors: [],
-    status: 'draft',
-    wholesale_enabled: false,
-    created_at: '2026-10-16T11:30:00Z',
-    updated_at: '2026-10-18T13:00:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_11',
-    title: 'Kashmiri Hand-Embroidered Pashmina Stole',
-    sku: 'CLO-PSH-11',
-    main_image_url: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'clothes-fashion', name: 'Clothes & Fashion' },
-    price_paise: 450000,
-    total_stock: 5,
-    colors: [
-      { name: 'Ruby Wine', hex: '#722F37' },
-      { name: 'Midnight Navy', hex: '#1B263B' },
-      { name: 'Camel Tan', hex: '#C19A6B' },
-    ],
-    status: 'approved',
-    wholesale_enabled: true,
-    created_at: '2026-10-02T15:00:00Z',
-    updated_at: '2026-10-13T16:45:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_12',
-    title: 'Hand-Carved Rosewood Spice Box with Inlay',
-    sku: 'HOM-RSW-12',
-    main_image_url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'home-living', name: 'Home & Living' },
-    price_paise: 215000,
-    total_stock: 7,
-    colors: [{ name: 'Dark Rosewood', hex: '#3E2723' }],
-    status: 'pending_review',
-    wholesale_enabled: true,
-    created_at: '2026-10-14T08:20:00Z',
-    updated_at: '2026-10-18T09:00:00Z',
-    submitted_at: '2026-10-14T08:20:00Z',
-    seller: {
-      seller_id: 'v_105',
-      store_name: 'Artisan Wood Craft',
-      seller_name: 'Vikram Joshi',
-      email: 'vikram@woodcraft.in',
-      mobile_masked: '+91 98765 •••••',
-      seller_status: 'approved',
-    },
-  }),
-  createProductRecord({
-    id: 'prod_13',
-    title: 'Artisanal Single-Origin Cardamom Pods 100g',
-    sku: 'RET-CRD-13',
-    main_image_url: '/retail-products.jpg',
-    category: { id: 'retail-products', name: 'Retail Products' },
-    price_paise: 54000,
-    total_stock: 2,
-    colors: [{ name: 'Cardamom Green', hex: '#587B58' }],
-    status: 'approved',
-    wholesale_enabled: false,
-    created_at: '2026-10-04T12:00:00Z',
-    updated_at: '2026-10-12T14:10:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_14',
-    title: 'Moonstone & Filigree Brass Pendant',
-    sku: 'JWL-FIL-14',
-    main_image_url: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'jewelry', name: 'Jewelry' },
-    price_paise: 145000,
-    total_stock: 10,
-    colors: [{ name: 'Silver Moon', hex: '#E0E6ED' }],
-    status: 'rejected',
-    rejection_reason:
-      'Photographs lack a clean plain neutral background and lighting causes heavy glare on the gemstone. Please upload high-res photos under diffused light.',
-    wholesale_enabled: false,
-    created_at: '2026-10-10T14:00:00Z',
-    updated_at: '2026-10-17T11:20:00Z',
-    submitted_at: '2026-10-10T14:30:00Z',
-    review_history: [
-      {
-        id: 'rev_102',
-        reviewed_by: 'Platform Super Admin',
-        decision: 'rejected',
-        reason_code: 'poor_image_quality',
-        reason:
-          'Photographs lack a clean plain neutral background and lighting causes heavy glare on the gemstone. Please upload high-res photos under diffused light.',
-        created_at: '2026-10-11T16:00:00Z',
-      },
-    ],
-  }),
-  createProductRecord({
-    id: 'prod_15',
-    title: 'Hand-Knitted Natural Jute Floor Mat 4x2 ft',
-    sku: 'HND-JUT-15',
-    main_image_url: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'handmade-products', name: 'Handmade Products' },
-    price_paise: 110000,
-    total_stock: 14,
-    colors: [
-      { name: 'Raw Jute', hex: '#D2B48C' },
-      { name: 'Bleached Khaki', hex: '#EDE6D6' },
-    ],
-    status: 'unpublished',
-    wholesale_enabled: true,
-    created_at: '2026-09-30T10:15:00Z',
-    updated_at: '2026-10-11T16:00:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_16',
-    title: 'Ayurvedic Secrets of Dinacharya: Daily Rituals',
-    sku: 'BOK-DNC-16',
-    main_image_url: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'books', name: 'Books' },
-    price_paise: 49900,
-    total_stock: 25,
-    colors: [],
-    status: 'draft',
-    wholesale_enabled: false,
-    created_at: '2026-10-17T14:00:00Z',
-    updated_at: '2026-10-18T10:00:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_17',
-    title: 'Hand-Painted Kalamkari Silk Dupatta',
-    sku: 'CLO-KLM-17',
-    main_image_url: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'clothes-fashion', name: 'Clothes & Fashion' },
-    price_paise: 320000,
-    total_stock: 6,
-    colors: [
-      { name: 'Rust Maroon', hex: '#8B263E' },
-      { name: 'Mustard Gold', hex: '#E5A93C' },
-      { name: 'Forest Green', hex: '#2D5A27' },
-    ],
-    status: 'pending_review',
-    wholesale_enabled: false,
-    created_at: '2026-10-16T16:30:00Z',
-    updated_at: '2026-10-18T08:30:00Z',
-    submitted_at: '2026-10-16T16:30:00Z',
-    seller: {
-      seller_id: 'v_104',
-      store_name: 'Heritage Handlooms & Crafts',
-      seller_name: 'Meenakshi Sundaram',
-      email: 'meenakshi@heritagecrafts.in',
-      mobile_masked: '+91 98451 •••••',
-      seller_status: 'approved',
-    },
-  }),
-  createProductRecord({
-    id: 'prod_18',
-    title: 'Organic Tellicherry Black Pepper 200g',
-    sku: 'RET-TLP-18',
-    main_image_url: '/retail-products.jpg',
-    category: { id: 'retail-products', name: 'Retail Products' },
-    price_paise: 32000,
-    total_stock: 60,
-    colors: [],
-    status: 'approved',
-    wholesale_enabled: true,
-    created_at: '2026-09-22T09:00:00Z',
-    updated_at: '2026-10-10T15:00:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_19',
-    title: 'Terracotta Bonsai Planter Bowl with Saucer',
-    sku: 'HOM-TER-19',
-    main_image_url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'home-living', name: 'Home & Living' },
-    price_paise: 68000,
-    total_stock: 16,
-    colors: [{ name: 'Earthy Terracotta', hex: '#C85A32' }],
-    status: 'unpublished',
-    wholesale_enabled: false,
-    created_at: '2026-10-05T13:45:00Z',
-    updated_at: '2026-10-09T17:15:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_20',
-    title: 'Rose & Hibiscus Botanical Facial Mist 100ml',
-    sku: 'NAT-MST-20',
-    main_image_url: '/botanical-care-banner.jpg',
-    category: { id: 'natural-products', name: 'Natural Products' },
-    price_paise: 48000,
-    total_stock: 30,
-    colors: [{ name: 'Blush Rose', hex: '#E8A598' }],
-    status: 'rejected',
-    rejection_reason:
-      'Product listing is missing the complete mandatory ingredients list (INCI) and manufacturing FSSAI/Ayush certification details.',
-    wholesale_enabled: false,
-    created_at: '2026-10-12T11:00:00Z',
-    updated_at: '2026-10-16T14:20:00Z',
-    submitted_at: '2026-10-12T11:30:00Z',
-    review_history: [
-      {
-        id: 'rev_103',
-        reviewed_by: 'Platform Super Admin',
-        decision: 'rejected',
-        reason_code: 'incomplete_description',
-        reason:
-          'Product listing is missing the complete mandatory ingredients list (INCI) and manufacturing FSSAI/Ayush certification details.',
-        created_at: '2026-10-13T10:00:00Z',
-      },
-    ],
-  }),
-  createProductRecord({
-    id: 'prod_21',
-    title: 'Handcrafted Bamboo Storage Basket Set (3 Pcs)',
-    sku: 'HND-BMB-21',
-    main_image_url: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'handmade-products', name: 'Handmade Products' },
-    price_paise: 185000,
-    total_stock: 1,
-    colors: [
-      { name: 'Natural Cane', hex: '#DFD3B6' },
-      { name: 'Smoked Walnut', hex: '#5D4037' },
-    ],
-    status: 'pending_review',
-    wholesale_enabled: true,
-    created_at: '2026-10-17T09:15:00Z',
-    updated_at: '2026-10-18T07:45:00Z',
-    submitted_at: '2026-10-17T09:15:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_22',
-    title: 'Kundan & Pearl Statement Choker Necklace',
-    sku: 'JWL-KND-22',
-    main_image_url: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'jewelry', name: 'Jewelry' },
-    price_paise: 590000,
-    total_stock: 3,
-    colors: [
-      { name: 'Emerald Green', hex: '#0B6623' },
-      { name: 'Ruby Gold', hex: '#9B111E' },
-    ],
-    status: 'archived',
-    wholesale_enabled: false,
-    created_at: '2026-08-15T10:00:00Z',
-    updated_at: '2026-09-20T12:00:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_23',
-    title: 'The Art of Indian Block Printing Manual',
-    sku: 'BOK-BLK-23',
-    main_image_url: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'books', name: 'Books' },
-    price_paise: 79900,
-    total_stock: 18,
-    colors: [],
-    status: 'unpublished',
-    wholesale_enabled: true,
-    created_at: '2026-09-05T14:30:00Z',
-    updated_at: '2026-10-08T11:00:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_24',
-    title: 'Organic Spun Cotton Kitchen Napkins (Pack of 4)',
-    sku: 'HOM-NPK-24',
-    main_image_url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'home-living', name: 'Home & Living' },
-    price_paise: 65000,
-    total_stock: 40,
-    colors: [
-      { name: 'Waffle Cream', hex: '#FDFBF7' },
-      { name: 'Olive Green', hex: '#556B2F' },
-      { name: 'Slate Gray', hex: '#708090' },
-    ],
-    status: 'archived',
-    wholesale_enabled: true,
-    created_at: '2026-08-20T11:00:00Z',
-    updated_at: '2026-09-15T15:30:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_25',
-    title: 'Cast Iron Seasoned Dosa Tawa 10 inch',
-    sku: 'HOM-IRO-25',
-    main_image_url: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=400&q=80',
-    category: { id: 'home-living', name: 'Home & Living' },
-    price_paise: 175000,
-    total_stock: 9,
-    colors: [{ name: 'Matte Cast Black', hex: '#1C1C1C' }],
-    status: 'draft',
-    wholesale_enabled: true,
-    created_at: '2026-10-18T10:00:00Z',
-    updated_at: '2026-10-18T16:00:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_26',
-    title: 'Handblock Floral Mulmul Anarkali Dress',
-    sku: 'CLO-ANK-26',
-    main_image_url: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=600&q=80',
-    category: { id: 'clothes-fashion', name: 'Clothes & Fashion' },
-    price_paise: 285000,
-    mrp_paise: 350000,
-    gst_rate_percent: 5,
-    total_stock: 45,
-    status: 'pending_review',
-    wholesale_enabled: true,
-    shipping_weight_grams: 480,
-    shipping_dimensions: { length_cm: 32, width_cm: 25, height_cm: 4 },
-    attributes: {
-      Fabric: '100% Mulmul Pure Cotton',
-      Weave: 'Handloom Voile',
-      Craft: 'Bagru Handblock Natural Dye Printing',
-      Lining: 'Full Soft Cotton Inner Included',
-      Origin: 'Sanganer, Rajasthan, India',
-      Care: 'Gentle hand wash in cold water using mild detergent. Dry in shade.',
-    },
-    tags: ['Anarkali', 'Bagru Block Print', 'Pure Mulmul', 'Handloom Fashion', 'Sustainable'],
-    color_galleries: [
-      {
-        color_name: 'Indigo Blue',
-        hex: '#1B3B6F',
-        images: [
-          'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=800&q=80',
-        ],
-      },
-      {
-        color_name: 'Madder Red',
-        hex: '#8B0000',
-        images: [
-          'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=800&q=80',
-        ],
-      },
-      {
-        color_name: 'Sage Olive',
-        hex: '#556B2F',
-        images: [
-          'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800&q=80',
-        ],
-      },
-    ],
-    variants: [
-      { sku: 'CLO-ANK-26-BLU-S', color_name: 'Indigo Blue', size: 'S', stock: 5, price_paise: 285000 },
-      { sku: 'CLO-ANK-26-BLU-M', color_name: 'Indigo Blue', size: 'M', stock: 5, price_paise: 285000 },
-      { sku: 'CLO-ANK-26-BLU-L', color_name: 'Indigo Blue', size: 'L', stock: 5, price_paise: 285000 },
-      { sku: 'CLO-ANK-26-RED-S', color_name: 'Madder Red', size: 'S', stock: 5, price_paise: 285000 },
-      { sku: 'CLO-ANK-26-RED-M', color_name: 'Madder Red', size: 'M', stock: 5, price_paise: 285000 },
-      { sku: 'CLO-ANK-26-RED-L', color_name: 'Madder Red', size: 'L', stock: 5, price_paise: 285000 },
-      { sku: 'CLO-ANK-26-GRN-S', color_name: 'Sage Olive', size: 'S', stock: 5, price_paise: 285000 },
-      { sku: 'CLO-ANK-26-GRN-M', color_name: 'Sage Olive', size: 'M', stock: 5, price_paise: 285000 },
-      { sku: 'CLO-ANK-26-GRN-L', color_name: 'Sage Olive', size: 'L', stock: 5, price_paise: 285000 },
-    ],
-    seller: {
-      seller_id: 'v_104',
-      store_name: 'Heritage Handlooms & Crafts',
-      seller_name: 'Meenakshi Sundaram',
-      email: 'meenakshi@heritagecrafts.in',
-      mobile_masked: '+91 98451 •••••',
-      seller_status: 'approved',
-    },
-    submitted_at: '2026-10-18T08:30:00Z',
-    created_at: '2026-10-17T14:00:00Z',
-    updated_at: '2026-10-18T08:30:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_27',
-    title: 'Terracotta Cooling Water Jug with Brass Spout',
-    sku: 'HOM-JUG-27',
-    main_image_url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=600&q=80',
-    video_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    category: { id: 'home-living', name: 'Home & Living' },
-    price_paise: 115000,
-    mrp_paise: 145000,
-    gst_rate_percent: 12,
-    total_stock: 14,
-    status: 'pending_review',
-    wholesale_enabled: true,
-    shipping_weight_grams: 1650,
-    shipping_dimensions: { length_cm: 28, width_cm: 22, height_cm: 32 },
-    attributes: {
-      Material: 'Natural Terracotta River Clay & Pure Brass Tap',
-      Capacity: '2.5 Litres',
-      PorousRate: 'Slow Natural Evaporative Cooling (-3 to -5°C)',
-      Origin: 'Kaveri Basin, Karnataka, India',
-    },
-    tags: ['Terracotta', 'Clay Jug', 'Eco Cooling', 'Handmade Pottery'],
-    seller: {
-      seller_id: 'v_101',
-      store_name: 'Kaveri Terracotta Works',
-      seller_name: 'Lakshmi Narayan',
-      email: 'lakshmi@kavericlay.in',
-      mobile_masked: '+91 98765 •••••',
-      seller_status: 'approved',
-    },
-    submitted_at: '2026-10-17T11:00:00Z',
-    created_at: '2026-10-16T10:00:00Z',
-    updated_at: '2026-10-17T11:00:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_28',
-    title: 'Pure Katan Silk Banarasi Saree with Antique Zari',
-    sku: 'CLO-SAR-28',
-    main_image_url: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80',
-    video_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
-    category: { id: 'clothes-fashion', name: 'Clothes & Fashion' },
-    price_paise: 1450000,
-    mrp_paise: 1890000,
-    gst_rate_percent: 5,
-    total_stock: 4,
-    status: 'pending_review',
-    wholesale_enabled: false,
-    shipping_weight_grams: 950,
-    shipping_dimensions: { length_cm: 35, width_cm: 28, height_cm: 6 },
-    attributes: {
-      Fabric: '100% Certified Katan Mulberry Silk (Silk Mark)',
-      Zari: 'Fine Electroplated Tested Antique Gold Zari',
-      WeavingDuration: '18 Days on Traditional Pit Loom',
-      Origin: 'Varanasi, Uttar Pradesh, India',
-      Care: 'Strictly dry clean only. Wrap in muslin cloth when storing.',
-    },
-    tags: ['Banarasi Saree', 'Silk Mark Certified', 'Handloom Heritage', 'Bridal Collection'],
-    seller: {
-      seller_id: 'v_103',
-      store_name: 'Varanasi Silk Emporium',
-      seller_name: 'Rajesh Varma',
-      email: 'rajesh@varanasisilk.in',
-      mobile_masked: '+91 94152 •••••',
-      seller_status: 'approved',
-    },
-    submitted_at: '2026-10-16T14:20:00Z',
-    created_at: '2026-10-15T09:00:00Z',
-    updated_at: '2026-10-16T14:20:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_29',
-    title: 'Beginner DIY Terracotta Clay Pottery Kit with Sculpting Tools',
-    sku: 'POT-KIT-29',
-    main_image_url: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=600&q=80',
-    category: { id: null, name: 'Pottery Kits' },
-    is_custom_category: true,
-    requested_category_name: 'Pottery Kits',
-    requested_subcategory_name: 'Beginner Sets',
-    custom_attributes: [
-      { label: 'Clay Type', value: 'Natural Air-Dry Kaolin Terracotta' },
-      { label: 'Included Tools', value: '5 Wooden Modeling Ribs, Sponge, Wire Cutter' },
-      { label: 'Skill Level', value: 'Beginner & Kids Friendly' },
-      { label: 'Shelf Life', value: '12 Months Unopened' },
-    ],
-    price_paise: 129900,
-    mrp_paise: 179900,
-    gst_rate_percent: 18,
-    total_stock: 35,
-    status: 'pending_review',
-    wholesale_enabled: true,
-    shipping_weight_grams: 2200,
-    shipping_dimensions: { length_cm: 30, width_cm: 20, height_cm: 15 },
-    tags: ['Pottery Kit', 'DIY Clay', 'Artisan Craft', 'Air Dry Clay'],
-    seller: {
-      seller_id: 'v_101',
-      store_name: 'Kaveri Terracotta Works',
-      seller_name: 'Lakshmi Narayan',
-      email: 'lakshmi@kavericlay.in',
-      mobile_masked: '+91 98765 •••••',
-      seller_status: 'approved',
-    },
-    submitted_at: '2026-10-19T09:30:00Z',
-    created_at: '2026-10-19T09:00:00Z',
-    updated_at: '2026-10-19T09:30:00Z',
-  }),
-  createProductRecord({
-    id: 'prod_30',
-    title: 'Handloom Indigo Khadi Kimono Robe with Pockets',
-    sku: 'CLO-KIM-30',
-    main_image_url: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=600&q=80',
-    category: { id: 'clothes-fashion', name: 'Clothes & Fashion' },
-    subcategory: '__custom__',
-    requested_subcategory_name: 'Lounge & Resort Wear',
-    custom_attributes: [
-      { label: 'Weave Type', value: 'Hand-Spun 56 Count Organic Khadi' },
-      { label: 'Dye Process', value: 'Fermented Natural Indigo Leaf Vat' },
-      { label: 'Silhouette', value: 'Relaxed Unisex Kimono Wrap' },
-    ],
-    price_paise: 385000,
-    mrp_paise: 450000,
-    gst_rate_percent: 5,
-    total_stock: 12,
-    colors: [
-      { name: 'Deep Indigo', hex: '#1B3B6F' },
-      { name: 'Sky Indigo', hex: '#6888A8' },
-    ],
-    status: 'pending_review',
-    wholesale_enabled: false,
-    shipping_weight_grams: 520,
-    shipping_dimensions: { length_cm: 32, width_cm: 24, height_cm: 5 },
-    tags: ['Khadi', 'Kimono', 'Organic Cotton', 'Indigo', 'Handloom'],
-    seller: {
-      seller_id: 'v_104',
-      store_name: 'Heritage Handlooms & Crafts',
-      seller_name: 'Meenakshi Sundaram',
-      email: 'meenakshi@heritagecrafts.in',
-      mobile_masked: '+91 98451 •••••',
-      seller_status: 'approved',
-    },
-    submitted_at: '2026-10-19T11:15:00Z',
-    created_at: '2026-10-19T10:30:00Z',
-    updated_at: '2026-10-19T11:15:00Z',
-  }),
-];
+export const mockVendorProducts: MockProductRecord[] = loadPersisted<MockProductRecord[]>('vendor_products', []);
+registerPersisted('vendor_products', () => mockVendorProducts);
 
 const isLocalhost =
   typeof window !== 'undefined' &&
@@ -1021,7 +317,41 @@ const isLocalhost =
 const passAuthThroughToBackend =
   isLocalhost && import.meta.env.VITE_USE_MOCKS_AUTH === 'false';
 
+// Real Node.js API for shopper authentication (works on any host, incl. production)
+const useRealBuyerAuth = import.meta.env.VITE_BUYER_AUTH_API === 'true';
+
 export const handlers = [
+  // Always pass through real backend endpoints to Node.js/Express
+  http.all('*/api/v1/admin/*', () => passthrough()),
+  http.all('*/api/v1/admin/**', () => passthrough()),
+  http.all('*/api/v1/orders/*', () => passthrough()),
+  http.all('*/api/v1/orders/**', () => passthrough()),
+  http.all('*/api/orders/*', () => passthrough()),
+  http.all('*/api/orders/**', () => passthrough()),
+  http.all('*/api/v1/coupons/*', () => passthrough()),
+  http.all('*/api/v1/coupons/**', () => passthrough()),
+  http.all('*/api/coupons/*', () => passthrough()),
+  http.all('*/api/coupons/**', () => passthrough()),
+  http.all('*/api/v1/products/*', () => passthrough()),
+  http.all('*/api/v1/products/**', () => passthrough()),
+  http.all('*/api/products/*', () => passthrough()),
+  http.all('*/api/products/**', () => passthrough()),
+  http.all('*/api/v1/categories/*', () => passthrough()),
+  http.all('*/api/v1/categories/**', () => passthrough()),
+  http.all('*/api/categories/*', () => passthrough()),
+  http.all('*/api/categories/**', () => passthrough()),
+  http.all('*/api/v1/upload/*', () => passthrough()),
+  http.all('*/api/v1/upload/**', () => passthrough()),
+  http.all('*/api/v1/csrf/*', () => passthrough()),
+  http.all('*/api/v1/csrf/**', () => passthrough()),
+
+  ...(useRealBuyerAuth
+    ? [
+        http.all('*/api/v1/buyer/auth/*', () => passthrough()),
+        http.all('*/api/v1/buyer/auth/**', () => passthrough()),
+      ]
+    : []),
+
   // When running locally with a real backend, pass vendor auth and CSRF through to it
   ...(passAuthThroughToBackend
     ? [
@@ -1033,6 +363,7 @@ export const handlers = [
 
   ...adminHandlers,
   ...onboardingHandlers,
+  ...buyerAuthHandlers,
 
   // 0. GET /api/v1/csrf/
   http.get('*/api/v1/csrf/', async () => {
@@ -1075,6 +406,13 @@ export const handlers = [
   // 2. POST /api/v1/vendor/auth/register/
   http.post('*/api/v1/vendor/auth/register/', async ({ request }) => {
     await delay(600);
+
+    if (getPlatformSettings().system_flags?.seller_registration_open === false) {
+      return HttpResponse.json(
+        { code: 'registration_closed', message: 'New seller registrations are currently closed by the marketplace administrator.' },
+        { status: 403 }
+      );
+    }
 
     const body = (await request.json()) as Partial<VendorRegisterPayload>;
     const email = (body.email || '').toLowerCase().trim();
@@ -1187,7 +525,7 @@ export const handlers = [
           verified: mockPendingRegistration.emailVerified,
           resend_available_in: emailResendIn,
         },
-        all_verified: mockPendingRegistration.mobileVerified && mockPendingRegistration.emailVerified,
+        all_verified: mockPendingRegistration.emailVerified,
       },
       { status: 200 }
     );
@@ -2499,11 +1837,11 @@ export const handlers = [
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       seller: {
-        seller_id: 'v_101',
-        store_name: 'Kaveri Terracotta Works',
-        seller_name: 'Lakshmi Narayan',
-        email: 'lakshmi@kavericlay.in',
-        mobile_masked: '+91 98765 •••••',
+        seller_id: mockCurrentVendor?.id || 'v_unknown',
+        store_name: mockCurrentVendor?.store_name || mockCurrentVendor?.full_name || 'Vendor Store',
+        seller_name: mockCurrentVendor?.full_name || 'Vendor',
+        email: mockCurrentVendor?.email || '',
+        mobile_masked: mockCurrentVendor?.mobile_masked || '',
         seller_status: 'approved',
       },
     };
@@ -3001,7 +2339,7 @@ export const handlers = [
           is_active: true,
           product_count: 1,
           created_at: new Date().toISOString(),
-          created_by: mockCurrentAdmin?.name || 'Super Admin',
+          created_by: currentAdminUser?.name || 'Super Admin',
         };
         mockCategories.push(newAdminCat);
 
@@ -3065,7 +2403,7 @@ export const handlers = [
     }
     found.review_history.unshift({
       id: `rev_${Date.now()}`,
-      reviewed_by: mockCurrentAdmin?.name || 'Platform Super Admin',
+      reviewed_by: currentAdminUser?.name || 'Platform Super Admin',
       decision: 'approved',
       created_at: new Date().toISOString(),
     });
@@ -3078,6 +2416,10 @@ export const handlers = [
       type: 'success',
       created_at: new Date().toISOString(),
     });
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cf_catalog_updated'));
+    }
 
     return HttpResponse.json(found, { status: 200 });
   }),
@@ -3118,7 +2460,7 @@ export const handlers = [
     }
     found.review_history.unshift({
       id: `rev_${Date.now()}`,
-      reviewed_by: mockCurrentAdmin?.name || 'Platform Super Admin',
+      reviewed_by: currentAdminUser?.name || 'Platform Super Admin',
       decision: 'rejected',
       reason_code: body.reason_code,
       reason,
@@ -3176,7 +2518,7 @@ export const handlers = [
       is_active: true,
       product_count: 0,
       created_at: new Date().toISOString(),
-      created_by: mockCurrentAdmin?.name || 'Platform Super Admin',
+      created_by: currentAdminUser?.name || 'Platform Super Admin',
     };
     mockCategories.push(newCat);
 
@@ -3261,5 +2603,113 @@ export const handlers = [
     }
 
     return HttpResponse.json(cat, { status: 200 });
+  }),
+
+  // 38. GET /api/products/ & GET /products/ - Real-time catalog combining baseline products and approved vendor products
+  http.get('*/api/products/', async ({ request }) => {
+    await delay(120);
+    const url = new URL(request.url);
+    const categoryFilter = url.searchParams.get('category');
+    const searchFilter = (url.searchParams.get('search') || '').trim().toLowerCase();
+
+    // Dynamically retrieve approved products from vendor database
+    const approvedVendorItems: Product[] = mockVendorProducts
+      .filter((p) => p.status === 'approved')
+      .map((p) => ({
+        id: p.id,
+        name: p.title,
+        price: Math.round(p.price_paise / 100),
+        originalPrice: Math.round((p.price_paise / 100) * 1.15),
+        category: p.category?.name || 'Handcrafted',
+        condition: 'New' as const,
+        conditionDetails: 'Artisan Handcrafted & Inspected',
+        material: 'Natural Organic Handcrafted',
+        dimensions: 'Standard Artisan Size',
+        description: p.description_i18n?.en || 'Authentic handcrafted creation verified by ChillyFlakes standards.',
+        features: ['100% Handcrafted', 'Zero Middlemen', 'Direct From Artisan'],
+        image: p.main_image_url || '/hero-chilli.png',
+        rating: 4.9,
+        reviewsCount: 12,
+        discount: 10,
+        stock: p.total_stock || 15,
+        inStock: p.total_stock > 0,
+        sellerId: p.seller?.seller_id,
+        sellerName: p.seller?.store_name,
+      }));
+
+    let all = [...initialProducts];
+    approvedVendorItems.forEach((vp) => {
+      if (!all.some((p) => p.id === vp.id)) {
+        all.unshift(vp);
+      }
+    });
+
+    if (categoryFilter && categoryFilter !== 'All') {
+      all = all.filter((p) => p.category.toLowerCase() === categoryFilter.toLowerCase());
+    }
+
+    if (searchFilter) {
+      all = all.filter(
+        (p) =>
+          p.name.toLowerCase().includes(searchFilter) ||
+          p.description.toLowerCase().includes(searchFilter) ||
+          p.material.toLowerCase().includes(searchFilter)
+      );
+    }
+
+    return HttpResponse.json(all, { status: 200 });
+  }),
+
+  http.get('*/products/', async ({ request }) => {
+    await delay(120);
+    const url = new URL(request.url);
+    const categoryFilter = url.searchParams.get('category');
+    const searchFilter = (url.searchParams.get('search') || '').trim().toLowerCase();
+
+    const approvedVendorItems: Product[] = mockVendorProducts
+      .filter((p) => p.status === 'approved')
+      .map((p) => ({
+        id: p.id,
+        name: p.title,
+        price: Math.round(p.price_paise / 100),
+        originalPrice: Math.round((p.price_paise / 100) * 1.15),
+        category: p.category?.name || 'Handcrafted',
+        condition: 'New' as const,
+        conditionDetails: 'Artisan Handcrafted & Inspected',
+        material: 'Natural Organic Handcrafted',
+        dimensions: 'Standard Artisan Size',
+        description: p.description_i18n?.en || 'Authentic handcrafted creation verified by ChillyFlakes standards.',
+        features: ['100% Handcrafted', 'Zero Middlemen', 'Direct From Artisan'],
+        image: p.main_image_url || '/hero-chilli.png',
+        rating: 4.9,
+        reviewsCount: 12,
+        discount: 10,
+        stock: p.total_stock || 15,
+        inStock: p.total_stock > 0,
+        sellerId: p.seller?.seller_id,
+        sellerName: p.seller?.store_name,
+      }));
+
+    let all = [...initialProducts];
+    approvedVendorItems.forEach((vp) => {
+      if (!all.some((p) => p.id === vp.id)) {
+        all.unshift(vp);
+      }
+    });
+
+    if (categoryFilter && categoryFilter !== 'All') {
+      all = all.filter((p) => p.category.toLowerCase() === categoryFilter.toLowerCase());
+    }
+
+    if (searchFilter) {
+      all = all.filter(
+        (p) =>
+          p.name.toLowerCase().includes(searchFilter) ||
+          p.description.toLowerCase().includes(searchFilter) ||
+          p.material.toLowerCase().includes(searchFilter)
+      );
+    }
+
+    return HttpResponse.json(all, { status: 200 });
   }),
 ];

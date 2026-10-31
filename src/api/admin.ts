@@ -12,6 +12,12 @@ import type {
   AdminStaffUser,
   PermissionKey,
   AdminAuditLogResponse,
+  AdminOrder,
+  AdminOrderListResponse,
+  AdminOrderStatus,
+  AdminPayoutBatch,
+  AdminFinanceResponse,
+  AdminPlatformSettings,
 } from '../types/admin';
 
 /* -------------------------------------------------------------------------- */
@@ -246,5 +252,123 @@ export interface AdminAuditLogParams {
 
 export async function getAdminAuditLogs(params?: AdminAuditLogParams): Promise<AdminAuditLogResponse> {
   const response = await axiosClient.get<AdminAuditLogResponse>('/api/v1/admin/audit-log/', { params });
+  return response.data;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 6. ORDERS & RETURNS                                                        */
+/* -------------------------------------------------------------------------- */
+export interface AdminOrderFilterParams {
+  tab?: 'all' | 'pending_dispatch' | 'in_transit' | 'delivered' | 'return_requested' | 'cancelled';
+  search?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export async function getAdminOrders(params?: AdminOrderFilterParams): Promise<AdminOrderListResponse> {
+  const response = await axiosClient.get<AdminOrderListResponse>('/api/v1/admin/orders/', { params });
+  return response.data;
+}
+
+export async function updateAdminOrderStatus(
+  id: string,
+  payload: { order_status?: AdminOrderStatus; courier_partner?: string; tracking_number?: string }
+): Promise<AdminOrder> {
+  const response = await axiosClient.patch<AdminOrder>(`/api/v1/admin/orders/${id}/status/`, payload);
+  return response.data;
+}
+
+export async function resolveAdminOrderReturn(
+  id: string,
+  payload: { action: 'approve_refund' | 'reject_return'; reason?: string }
+): Promise<AdminOrder> {
+  const response = await axiosClient.post<AdminOrder>(`/api/v1/admin/orders/${id}/resolve-return/`, payload);
+  return response.data;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 7. FINANCE & PAYOUTS                                                       */
+/* -------------------------------------------------------------------------- */
+export async function getAdminFinance(): Promise<AdminFinanceResponse> {
+  const response = await axiosClient.get<AdminFinanceResponse>('/api/v1/admin/finance/');
+  return response.data;
+}
+
+export async function approvePayoutBatch(id: string): Promise<AdminPayoutBatch> {
+  const response = await axiosClient.post<AdminPayoutBatch>(`/api/v1/admin/finance/batches/${id}/approve/`);
+  return response.data;
+}
+
+export async function disbursePayoutBatch(id: string, utr_reference?: string): Promise<AdminPayoutBatch> {
+  const response = await axiosClient.post<AdminPayoutBatch>(`/api/v1/admin/finance/batches/${id}/disburse/`, {
+    utr_reference,
+  });
+  return response.data;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 8. PLATFORM SETTINGS                                                       */
+/* -------------------------------------------------------------------------- */
+export async function getAdminPlatformSettings(): Promise<AdminPlatformSettings> {
+  const response = await axiosClient.get<AdminPlatformSettings>('/api/v1/admin/settings/');
+  return response.data;
+}
+
+export async function updateAdminPlatformSettings(payload: Partial<AdminPlatformSettings>): Promise<AdminPlatformSettings> {
+  const response = await axiosClient.put<AdminPlatformSettings>('/api/v1/admin/settings/', payload);
+  return response.data;
+}
+
+export interface AdminResetDataResponse {
+  success: boolean;
+  deleted: Record<string, number>;
+}
+
+/** Super Admin only — permanently wipes orders, finance, coupons, audit log, reviews, sellers & customers. */
+export async function resetAdminPlatformData(): Promise<AdminResetDataResponse> {
+  const response = await axiosClient.post<AdminResetDataResponse>('/api/v1/admin/settings/reset-data/', {
+    confirm: 'RESET',
+  });
+  return response.data;
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* STAFF LOGINS & SETTLEMENT GENERATION                                       */
+/* -------------------------------------------------------------------------- */
+export interface CreateStaffPayload {
+  name: string;
+  email: string;
+  phone?: string;
+  role_id: string;
+  password: string;
+}
+
+export async function createAdminStaff(payload: CreateStaffPayload): Promise<AdminStaffUser> {
+  const response = await axiosClient.post<AdminStaffUser>('/api/v1/admin/staff/', payload);
+  return response.data;
+}
+
+export async function setAdminStaffActive(staffId: string, active: boolean): Promise<AdminStaffUser> {
+  const action = active ? 'activate' : 'deactivate';
+  const response = await axiosClient.post<AdminStaffUser>(`/api/v1/admin/staff/${staffId}/${action}/`);
+  return response.data;
+}
+
+export async function resetAdminStaffPassword(staffId: string, password: string): Promise<{ success: boolean }> {
+  const response = await axiosClient.post<{ success: boolean }>(`/api/v1/admin/staff/${staffId}/reset-password/`, {
+    password,
+  });
+  return response.data;
+}
+
+export interface GeneratePayoutBatchesResponse {
+  created: number;
+  skipped_below_minimum: number;
+  batches: AdminPayoutBatch[];
+}
+
+export async function generatePayoutBatches(): Promise<GeneratePayoutBatchesResponse> {
+  const response = await axiosClient.post<GeneratePayoutBatchesResponse>('/api/v1/admin/finance/batches/generate/');
   return response.data;
 }

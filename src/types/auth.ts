@@ -26,7 +26,9 @@ export interface VendorUser {
   email: string;
   mobile_masked: string;
   vendor_status: VendorStatus;
+  status?: VendorStatus;
   store_name?: string;
+  email_verified?: boolean;
 }
 
 export interface VendorRegisterPayload {
@@ -47,6 +49,8 @@ export interface VendorRegisterResponse {
   message: string;
   masked_email: string;
   masked_mobile: string;
+  token?: string;
+  user?: VendorUser;
 }
 
 export type OtpChannel = 'mobile' | 'email';
@@ -62,14 +66,17 @@ export interface CheckAvailabilityResponse {
 
 export interface VerificationChannelStatus {
   masked: string;
+  email?: string;
   verified: boolean;
   resend_available_in: number;
+  dev_code?: string;
 }
 
 export interface VerificationStatusResponse {
   mobile: VerificationChannelStatus;
   email: VerificationChannelStatus;
   all_verified: boolean;
+  dev_code?: string;
 }
 
 export interface VerifyOtpPayload {
@@ -89,6 +96,7 @@ export interface ResendOtpPayload {
 
 export interface ResendOtpResponse {
   resend_available_in: number;
+  dev_code?: string;
 }
 
 export interface VendorLoginPayload {
@@ -100,6 +108,7 @@ export interface VendorLoginResponse {
   message: string;
   vendor_status: VendorStatus;
   user: VendorUser;
+  token?: string;
 }
 
 export interface NormalizedApiError {
@@ -107,6 +116,8 @@ export interface NormalizedApiError {
   message: string;
   fieldErrors?: Record<string, string[]>;
   retry_after_seconds?: number;
+  /** Raw error body from the server (extra context such as `email`, `resend_after_seconds`). */
+  details?: Record<string, unknown>;
 }
 
 export interface PasswordResetRequestPayload {

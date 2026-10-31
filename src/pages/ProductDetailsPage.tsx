@@ -13,10 +13,23 @@ import {
   Leaf,
   Plus,
   Minus,
-  MessageSquare
+  MessageSquare,
+  Maximize2,
+  X,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { formatRupees, FREE_SHIPPING_THRESHOLD } from '../utils/currency';
+import { axiosClient } from '../api/client';
+
+interface ProductReviewItem {
+  id: string;
+  userName: string;
+  rating: number;
+  title: string;
+  comment: string;
+  verifiedPurchase: boolean;
+  createdAt: string;
+}
 
 export const ProductDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,8 +41,7 @@ export const ProductDetailsPage: React.FC = () => {
     toggleWishlist, 
     isInWishlist, 
     setIsCartOpen, 
-    productReviews, 
-    addProductReview,
+    user,
     showToast 
   } = useStore();
 
@@ -41,6 +53,13 @@ export const ProductDetailsPage: React.FC = () => {
   const [quantity, setQuantity] = useState<number>(1);
   const [deliveryPincode, setDeliveryPincode] = useState<string>('682001');
   const [pincodeChecked, setPincodeChecked] = useState<boolean>(true);
+  const [isZoomOpen, setIsZoomOpen] = useState<boolean>(false);
+
+  // Real backend reviews state
+  const [reviews, setReviews] = useState<ProductReviewItem[]>([]);
+  const [reviewsCount, setReviewsCount] = useState<number>(0);
+  const [averageRating, setAverageRating] = useState<number>(0);
+  const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
 
   // Review form state
   const [isReviewFormOpen, setIsReviewFormOpen] = useState<boolean>(false);
@@ -49,13 +68,27 @@ export const ProductDetailsPage: React.FC = () => {
   const [reviewTitle, setReviewTitle] = useState<string>('');
   const [reviewComment, setReviewComment] = useState<string>('');
 
+  const fetchReviews = async (productId: string) => {
+    try {
+      const res = await axiosClient.get(`/api/v1/products/${productId}/reviews/`);
+      if (res.data) {
+        setReviews(res.data.results || []);
+        setReviewsCount(res.data.totalCount ?? 0);
+        setAverageRating(res.data.averageRating ?? 0);
+      }
+    } catch (err) {
+      console.warn('Error fetching reviews:', err);
+    }
+  };
+
   useEffect(() => {
     if (product) {
       setSelectedImage(product.image);
       setQuantity(1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      fetchReviews(product.id);
     }
-  }, [product]);
+  }, [product?.id]);
 
   if (!product) {
     return (
@@ -72,7 +105,7 @@ export const ProductDetailsPage: React.FC = () => {
           </p>
           <button
             onClick={() => navigate('/shop')}
-            className="px-6 py-2.5 bg-[#2E4D34] hover:bg-[#223E27] text-white text-xs font-semibold rounded-full shadow-xs"
+            className="px-6 py-2.5 bg-[#2E4D34] hover:bg-[#223E27] text-white text-xs font-semibold rounded-full shadow-xs cursor-pointer"
           >
             Browse Marketplace Catalog
           </button>
@@ -82,12 +115,11 @@ export const ProductDetailsPage: React.FC = () => {
   }
 
   const isWishlisted = isInWishlist(product.id);
-  const reviews = productReviews[product.id] || [];
 
-  const galleryImages = [
+  const galleryImages = Array.from(new Set([
     product.image,
-    ...(product.additionalImages || []).filter((img) => img !== product.image),
-  ];
+    ...(product.additionalImages || []),
+  ].filter(Boolean)));
 
   // Related products
   const relatedProducts = products
@@ -106,23 +138,36 @@ export const ProductDetailsPage: React.FC = () => {
     navigate('/checkout');
   };
 
-  const handleAddReview = (e: React.FormEvent) => {
+  const handleAddReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reviewTitle.trim() || !reviewComment.trim()) {
       showToast('Please provide both a title and review comment.', 'warning');
       return;
     }
-    addProductReview({
-      productId: product.id,
-      rating: reviewRating,
-      userName: reviewerName.trim() || 'Handmade Enthusiast',
-      title: reviewTitle.trim(),
-      comment: reviewComment.trim(),
-    });
-    setReviewTitle('');
-    setReviewComment('');
-    setReviewerName('');
-    setIsReviewFormOpen(false);
+    setIsSubmittingReview(true);
+    try {
+      const res = await axiosClient.post(`/api/v1/products/${product.id}/reviews/`, {
+        rating: reviewRating,
+        title: reviewTitle.trim(),
+        comment: reviewComment.trim(),
+        customerName: reviewerName.trim() || (user?.name || 'Verified Customer'),
+        customerEmail: user?.email || undefined,
+      });
+      showToast(
+        res.data?.message ||
+          'Thank you! Your review is important to us and has been submitted successfully. It will be reviewed by admin for approval before being published.',
+        'success'
+      );
+      setReviewTitle('');
+      setReviewComment('');
+      setReviewerName('');
+      setIsReviewFormOpen(false);
+      fetchReviews(product.id);
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to submit review.', 'warning');
+    } finally {
+      setIsSubmittingReview(false);
+    }
   };
 
   return (
@@ -151,19 +196,33 @@ export const ProductDetailsPage: React.FC = () => {
           <div className="lg:col-span-6 space-y-4">
             
             {/* Primary Large Image */}
-            <div className="relative aspect-[4/3] sm:aspect-square rounded-2xl overflow-hidden bg-[#FAF7F2] border border-[#ECE7DD] flex items-center justify-center p-3">
+            <div 
+              onClick={() => setIsZoomOpen(true)}
+              className="relative aspect-[4/3] sm:aspect-square rounded-2xl overflow-hidden bg-[#FAF7F2] border border-[#ECE7DD] flex items-center justify-center p-3 cursor-zoom-in group shadow-xs"
+              title="Click to view full-size image"
+            >
               <img
                 src={selectedImage || product.image}
                 alt={product.name}
-                className="w-full h-full object-contain sm:object-cover rounded-xl transition-all duration-300"
+                className="w-full h-full object-contain sm:object-cover rounded-xl transition-all duration-300 group-hover:scale-102"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/hero-banner.jpg';
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=800&q=80';
                 }}
               />
 
+              {/* Zoom hint badge */}
+              <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 pointer-events-none">
+                <Maximize2 className="w-3 h-3" />
+                <span>Zoom</span>
+              </div>
+
               {/* Wishlist Button */}
               <button
-                onClick={() => toggleWishlist(product)}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleWishlist(product);
+                }}
                 className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 shadow-md ${
                   isWishlisted
                     ? 'bg-[#D82C20] text-white'
@@ -189,9 +248,10 @@ export const ProductDetailsPage: React.FC = () => {
                 {galleryImages.map((img, idx) => (
                   <button
                     key={idx}
+                    type="button"
                     onClick={() => setSelectedImage(img)}
-                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all p-1 flex-shrink-0 bg-[#FAF7F2] ${
-                      selectedImage === img
+                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all p-1 flex-shrink-0 bg-[#FAF7F2] cursor-pointer ${
+                      (selectedImage || product.image) === img
                         ? 'border-[#2E4D34] ring-2 ring-[#2E4D34]/20 scale-102'
                         : 'border-[#E2D8C6] hover:border-[#2E4D34]/50'
                     }`}
@@ -225,7 +285,7 @@ export const ProductDetailsPage: React.FC = () => {
                 </span>
                 <button
                   onClick={handleShare}
-                  className="inline-flex items-center gap-1 text-xs text-[#5E6D60] hover:text-[#2E4D34] transition-colors"
+                  className="inline-flex items-center gap-1 text-xs text-[#5E6D60] hover:text-[#2E4D34] transition-colors cursor-pointer"
                 >
                   <Share2 className="w-3.5 h-3.5" />
                   <span>Share</span>
@@ -236,18 +296,20 @@ export const ProductDetailsPage: React.FC = () => {
                 {product.name}
               </h1>
 
-              {/* Ratings and Reviews count */}
+              {/* Real Ratings and Reviews count */}
               <div className="flex items-center gap-3 mt-3 text-xs">
-                <div className="flex items-center gap-1 bg-[#FAF7F2] px-2.5 py-1 rounded-md border border-[#ECE7DD] text-[#223B28] font-bold">
-                  <span>{product.rating.toFixed(1)}</span>
-                  <Star className="w-3.5 h-3.5 fill-[#FBBF24] text-[#FBBF24]" />
-                </div>
+                {averageRating > 0 && reviewsCount > 0 && (
+                  <div className="flex items-center gap-1 bg-[#FAF7F2] px-2.5 py-1 rounded-md border border-[#ECE7DD] text-[#223B28] font-bold">
+                    <span>{averageRating.toFixed(1)}</span>
+                    <Star className="w-3.5 h-3.5 fill-[#FBBF24] text-[#FBBF24]" />
+                  </div>
+                )}
                 <span className="text-[#6C7B6D]">
-                  {product.reviewsCount + reviews.length} Verified Customer Reviews
+                  {reviewsCount > 0 ? `${reviewsCount} Verified Customer Review${reviewsCount > 1 ? 's' : ''}` : 'No reviews yet'}
                 </span>
                 <span className="text-[#B6C6B5]">•</span>
                 <span className="text-[#2E4D34] font-semibold">
-                  {product.stock > 0 ? `In Stock (${product.stock} left)` : 'Out of stock'}
+                  {product.stock > 0 ? `In Stock (${product.stock} available)` : 'Out of stock'}
                 </span>
               </div>
             </div>
@@ -483,9 +545,10 @@ export const ProductDetailsPage: React.FC = () => {
 
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-[#2E4D34] hover:bg-[#233B27] text-white text-xs font-bold rounded-xl shadow-xs"
+                disabled={isSubmittingReview}
+                className="px-6 py-2.5 bg-[#2E4D34] hover:bg-[#233B27] disabled:bg-[#8F9E8F] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-2"
               >
-                Submit Verified Review
+                {isSubmittingReview ? 'Submitting Review...' : 'Submit Verified Review'}
               </button>
             </form>
           )}
@@ -493,9 +556,15 @@ export const ProductDetailsPage: React.FC = () => {
           {/* Existing Reviews List */}
           <div className="space-y-4">
             {reviews.length === 0 ? (
-              <p className="text-xs text-[#7E8F80] py-4">
-                No customer reviews yet. Be the first to review this handcrafted product!
-              </p>
+              <div className="text-center py-8 bg-[#FAF7F2] rounded-2xl border border-dashed border-[#ECE7DD] space-y-2">
+                <MessageSquare className="w-8 h-8 mx-auto text-[#7E8F80]" />
+                <p className="text-xs text-[#506052] font-semibold">
+                  No verified customer reviews yet.
+                </p>
+                <p className="text-[11px] text-[#7E8F80]">
+                  Be the first to share your experience with this handcrafted creation!
+                </p>
+              </div>
             ) : (
               reviews.map((rev) => (
                 <div key={rev.id} className="p-4 bg-[#FAF7F2] rounded-2xl border border-[#ECE7DD] space-y-2">
@@ -522,7 +591,7 @@ export const ProductDetailsPage: React.FC = () => {
 
                   <div className="flex items-center gap-2 text-[10px] text-[#2E4D34] font-semibold pt-1">
                     <Check className="w-3 h-3 text-[#2E4D34]" />
-                    <span>{rev.userName} • Verified ChillyFlakes Buyer</span>
+                    <span>{rev.userName} {rev.verifiedPurchase ? '• Verified Purchase' : '• Customer Review'}</span>
                   </div>
                 </div>
               ))
@@ -564,6 +633,58 @@ export const ProductDetailsPage: React.FC = () => {
         )}
 
       </div>
+
+      {/* Fullscreen Image Lightbox */}
+      {isZoomOpen && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex flex-col items-center justify-center p-4"
+          onClick={() => setIsZoomOpen(false)}
+        >
+          <div 
+            className="relative max-w-4xl max-h-[85vh] w-full bg-white rounded-3xl p-4 flex flex-col items-center justify-between shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex items-center justify-between pb-3 border-b border-[#ECE7DD]">
+              <h3 className="text-sm font-bold text-[#223B28]">{product.name}</h3>
+              <button
+                type="button"
+                onClick={() => setIsZoomOpen(false)}
+                className="p-1.5 hover:bg-[#FAF7F2] rounded-full text-[#506052] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 w-full max-h-[65vh] flex items-center justify-center py-4 overflow-hidden">
+              <img
+                src={selectedImage || product.image}
+                alt={product.name}
+                className="max-h-[60vh] max-w-full object-contain rounded-xl"
+              />
+            </div>
+
+            {/* Thumbnail selector in modal */}
+            {galleryImages.length > 1 && (
+              <div className="flex items-center gap-2 overflow-x-auto py-2 border-t border-[#ECE7DD] w-full justify-center">
+                {galleryImages.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedImage(img)}
+                    className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all p-0.5 cursor-pointer ${
+                      (selectedImage || product.image) === img
+                        ? 'border-[#2E4D34] ring-2 ring-[#2E4D34]/30'
+                        : 'border-[#ECE7DD] opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    <img src={img} alt="" className="w-full h-full object-cover rounded-md" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

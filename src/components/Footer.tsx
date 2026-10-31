@@ -4,11 +4,20 @@ import { useTranslation } from 'react-i18next';
 import { Logo } from './Logo';
 import { useStore } from '../context/StoreContext';
 import { LanguageSwitcher } from './ui/LanguageSwitcher';
+import { useLivePlatformSettings } from '../utils/platformSync';
 
 export const Footer: React.FC = () => {
   const { t } = useTranslation();
   const { showToast, setSelectedCategory } = useStore();
   const [email, setEmail] = useState('');
+  const { settings } = useLivePlatformSettings();
+  const c = settings.compliance;
+  const complianceLine = [
+    c?.legal_entity_name,
+    c?.gstin ? `GSTIN: ${c.gstin}` : '',
+    c?.registered_office_address,
+  ].filter(Boolean).join(' · ');
+  const supportLine = [c?.support_email, c?.support_phone].filter(Boolean).join(' · ');
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,6 +114,14 @@ export const Footer: React.FC = () => {
                   className="hover:text-white transition-colors"
                 >
                   {t('footer.myAccount', 'My Account')}
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  to="/admin/login" 
+                  className="hover:text-white transition-colors text-[#A3C4A5]/70 hover:text-[#A3C4A5] text-[11px]"
+                >
+                  Super Admin Console
                 </Link>
               </li>
             </ul>
@@ -256,9 +273,13 @@ export const Footer: React.FC = () => {
 
         {/* Bottom Bar matching screenshot */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-[#B2C5B1] gap-4">
-          <p>
-            {t('footer.rights', '© 2026 ChillyFlakes. All rights reserved.')}
-          </p>
+          <div>
+            <p>
+              {t('footer.rights', '© 2026 ChillyFlakes. All rights reserved.')}
+            </p>
+            {complianceLine && <p className="mt-1 text-[10px] text-[#8FA68E]">{complianceLine}</p>}
+            {supportLine && <p className="mt-0.5 text-[10px] text-[#8FA68E]">Support: {supportLine}</p>}
+          </div>
           <div className="flex items-center gap-4 flex-wrap justify-center">
             <div className="flex items-center gap-2">
               <span className="text-white/70">{t('footer.language', 'Language:')}</span>

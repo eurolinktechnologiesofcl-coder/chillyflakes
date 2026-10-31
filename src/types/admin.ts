@@ -289,3 +289,153 @@ export interface AdminAuditLogResponse {
   previous: string | null;
   results: AuditLogEntry[];
 }
+
+/* -------------------------------------------------------------------------- */
+/* 5. ORDERS & RETURNS                                                        */
+/* -------------------------------------------------------------------------- */
+export type AdminOrderStatus =
+  | 'pending_dispatch'
+  | 'in_transit'
+  | 'delivered'
+  | 'cancelled'
+  | 'return_requested'
+  | 'refunded';
+
+export interface AdminOrderItem {
+  product_id: string;
+  title: string;
+  image: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  seller_id: string;
+  seller_name: string;
+}
+
+export interface AdminOrder {
+  id: string;
+  order_number: string;
+  customer_id: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  items: AdminOrderItem[];
+  total_amount: number;
+  shipping_fee: number;
+  tax_amount: number;
+  payment_method: 'upi' | 'card' | 'netbanking' | 'cod';
+  payment_status: 'paid' | 'pending' | 'refunded' | 'failed';
+  order_status: AdminOrderStatus;
+  delivery_speed: 'standard' | 'express';
+  is_eco_delivery: boolean;
+  tracking_number?: string;
+  courier_partner?: string;
+  shipping_address: {
+    name: string;
+    street: string;
+    city: string;
+    state: string;
+    pincode: string;
+    country: string;
+  };
+  return_reason?: string;
+  return_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminOrderListResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: AdminOrder[];
+  tab_counts: {
+    all: number;
+    pending_dispatch: number;
+    in_transit: number;
+    delivered: number;
+    return_requested: number;
+    cancelled: number;
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* 6. FINANCE & PAYOUTS                                                       */
+/* -------------------------------------------------------------------------- */
+export type AdminPayoutStatus = 'pending_approval' | 'processing' | 'disbursed' | 'failed';
+
+export interface AdminPayoutBatch {
+  id: string;
+  batch_number: string;
+  seller_id: string;
+  seller_name: string;
+  store_name: string;
+  bank_name: string;
+  account_number_masked: string;
+  ifsc_code: string;
+  gross_sales: number;
+  platform_fee_percent: number;
+  platform_fee_amount: number;
+  tcs_tax_amount: number;
+  net_payout: number;
+  order_count: number;
+  period_start: string;
+  period_end: string;
+  status: AdminPayoutStatus;
+  utr_reference?: string;
+  disbursed_at?: string;
+  notes?: string;
+  /** Admin order ids settled in this batch. */
+  order_ids?: string[];
+  created_at: string;
+}
+
+export interface AdminFinanceSummary {
+  gmv: number;
+  platform_revenue: number;
+  disbursed_total: number;
+  pending_settlement_total: number;
+  held_funds: number;
+  monthly_growth_rate: number;
+  payout_batches_pending: number;
+  vendor_sales?: number;
+  first_party_sales?: number;
+  platform_fee_percent?: number;
+  tcs_tax_percent?: number;
+}
+
+export interface AdminFinanceResponse {
+  summary: AdminFinanceSummary;
+  batches: AdminPayoutBatch[];
+}
+
+/* -------------------------------------------------------------------------- */
+/* 7. PLATFORM SETTINGS                                                       */
+/* -------------------------------------------------------------------------- */
+export interface AdminPlatformSettings {
+  marketplace: {
+    platform_fee_percent: number;
+    tcs_tax_percent: number;
+    payout_frequency: 'weekly' | 'biweekly' | 'monthly';
+    minimum_payout_amount: number;
+  };
+  shipping: {
+    free_shipping_threshold: number;
+    standard_delivery_fee: number;
+    eco_packaging_fee: number;
+    estimated_delivery_days: number;
+  };
+  compliance: {
+    gstin: string;
+    legal_entity_name: string;
+    registered_office_address: string;
+    support_email: string;
+    support_phone: string;
+  };
+  system_flags: {
+    maintenance_mode: boolean;
+    seller_registration_open: boolean;
+    eco_delivery_enabled: boolean;
+  };
+}
+

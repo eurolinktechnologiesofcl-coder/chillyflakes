@@ -31,8 +31,13 @@ export const VendorAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setUser(null);
     });
 
+    // Admin decided on the application (realtime) → refresh session so route guards update
+    const onStatusUpdated = () => void fetchUser();
+    window.addEventListener('cf_vendor_status_updated', onStatusUpdated);
+
     return () => {
       setOnUnauthorizedCallback(null);
+      window.removeEventListener('cf_vendor_status_updated', onStatusUpdated);
     };
   }, [fetchUser]);
 

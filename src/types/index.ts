@@ -20,6 +20,9 @@ export interface Product {
   isPreOwned?: boolean;
   stock: number;
   isAssured?: boolean;
+  /** Vendor that owns this listing (undefined = sold by ChillyFlakes directly). */
+  sellerId?: string;
+  sellerName?: string;
 }
 
 export interface Category {
@@ -71,14 +74,24 @@ export interface BuyerOrder {
   paymentId?: string;
   deliverySpeed: 'standard' | 'express';
   estimatedDeliveryDate?: string;
+  courierPartner?: string;
+  trackingNumber?: string;
+  customerEmail?: string;
+  ecoPackaging?: boolean;
+  ecoPackagingFee?: number;
+  returnRequested?: boolean;
+  returnReason?: string;
 }
 
 export interface BuyerBooking {
   id: string;
+  bookingRef?: string;
   serviceId: string;
   serviceTitle: string;
   userName: string;
   userContact: string;
+  customerEmail?: string;
+  userPhone?: string;
   preferredDate: string;
   preferredTime: string;
   status: 'Requested' | 'Confirmed' | 'Completed' | 'Cancelled';

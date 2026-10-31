@@ -97,7 +97,10 @@ export async function fetchCsrfToken(reason?: string): Promise<string | null> {
  */
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('auth_token') || localStorage.getItem('token');
+  if (window.location.pathname.startsWith('/admin')) {
+    return localStorage.getItem('cf_admin_token') || localStorage.getItem('auth_token') || localStorage.getItem('token');
+  }
+  return localStorage.getItem('auth_token') || localStorage.getItem('cf_admin_token') || localStorage.getItem('token');
 }
 
 /**
@@ -133,7 +136,7 @@ export const axiosClient: AxiosInstance = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-  timeout: 10000,
+  timeout: 30000,
 });
 
 // Request Interceptor: prevent duplicate `/api/` prefixes and attach headers
@@ -277,12 +280,14 @@ axiosClient.interceptors.response.use(
         message: msg,
         fieldErrors,
         retry_after_seconds: retryAfterSeconds,
+        details: data && typeof data === 'object' ? (data as Record<string, unknown>) : undefined,
       };
 
       // On a 401 from any call OTHER than login and me, clear user session and redirect to /vendor/login without redirect loop
       if (status === 401) {
         const reqUrl = error.config?.url || '';
-        const isAuthEndpoint = reqUrl.includes('/auth/login') || reqUrl.includes('/auth/me');
+        const isAuthEndpoint =
+          reqUrl.includes('/auth/login') || reqUrl.includes('/auth/me') || reqUrl.includes('/buyer/');
         if (!isAuthEndpoint) {
           if (onUnauthorizedCallback) {
             onUnauthorizedCallback();

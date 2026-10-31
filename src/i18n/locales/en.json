@@ -143,10 +143,10 @@
     "fixErrors": "Please check the highlighted fields below."
   },
   "otpVerification": {
-    "title": "Verify your account",
-    "subtitle": "We sent a code to your mobile and your email. Enter both to continue.",
+    "title": "Verify your email",
+    "subtitle": "We sent a 6-digit verification code to your email inbox. Enter the code below to continue.",
     "mobileCardTitle": "Mobile Verification",
-    "emailCardTitle": "Email Verification",
+    "emailCardTitle": "Gmail / Email Verification",
     "codeSentTo": "Code sent to",
     "statusPending": "Pending",
     "statusVerified": "Verified",
@@ -156,7 +156,7 @@
     "resendBtn": "Resend OTP",
     "resendIn": "Resend in {{seconds}}s",
     "continueBtn": "Continue to Seller Onboarding",
-    "wrongDetailsLink": "Wrong number or email? Go back",
+    "wrongDetailsLink": "Wrong email? Go back",
     "errorInvalidOtp": "Invalid OTP code. Please check and try again.",
     "errorOtpExpired": "This OTP has expired. Please request a new code.",
     "errorTooManyAttempts": "Too many attempts. Channel locked for {{minutes}} minutes.",
@@ -771,6 +771,8 @@
     "modal": {
       "title": "Book an Appointment:",
       "namePlaceholder": "Your Full Name",
+      "emailPlaceholder": "Your Email Address",
+      "phonePlaceholder": "Your Phone Number (e.g. +91 98765 43210)",
       "contactPlaceholder": "Phone or Email",
       "slotMorning": "Morning (09:00 AM - 12:00 PM)",
       "slotAfternoon": "Afternoon (12:00 PM - 03:00 PM)",

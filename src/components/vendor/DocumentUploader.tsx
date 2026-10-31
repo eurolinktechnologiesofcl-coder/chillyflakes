@@ -14,7 +14,7 @@ import {
 import { Button } from '../ui/Button';
 import { ConfirmDialog } from './ConfirmDialog';
 import { uploadOnboardingDocument, deleteOnboardingDocument, getDocumentPreviewLink } from '../../api/vendorOnboarding';
-import type { DocumentType, UploadedDocument } from '../../types/onboarding';
+import type { DocumentType, DocumentUploadResponse, UploadedDocument } from '../../types/onboarding';
 
 export interface DocumentUploaderProps {
   label: string;
@@ -133,19 +133,28 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 
     try {
       const res = await uploadOnboardingDocument(file, documentType);
-      clearInterval(interval);
-      setUploadProgress(100);
+      const raw = res as DocumentUploadResponse & { document_id?: string; file_name?: string };
+      const docId = raw.id || raw.document_id;
+      if (!docId) {
+        throw new Error(
+          t('onboarding.uploader.uploadFailed', {
+            defaultValue: 'Upload failed. Please check your connection and retry.',
+          })
+        );
+      }
 
       const newDoc: UploadedDocument = {
-        id: res.id,
+        id: docId,
         document_type: documentType,
-        filename: res.filename || file.name,
-        size: res.size || file.size,
-        type: res.type || file.type,
-        status: res.status || 'uploaded',
+        filename: raw.filename || file.name,
+        size: raw.size || file.size,
+        type: raw.type || file.type,
+        status: raw.status || 'uploaded',
         created_at: new Date().toISOString(),
       };
 
+      clearInterval(interval);
+      setUploadProgress(100);
       onChange(newDoc);
     } catch (err: unknown) {
       clearInterval(interval);

@@ -8,8 +8,16 @@ import './index.css';
 import AppRoutes from './routes';
 import { VendorAuthProvider } from './context/VendorAuthContext';
 import { AdminAuthProvider } from './context/AdminAuthContext';
+import { BuyerAuthProvider } from './context/BuyerAuthContext';
+import { VendorStatusNotifier } from './components/VendorStatusNotifier';
+import { runOneTimeDataReset } from './utils/platformSync';
 
 import { fetchCsrfToken } from './api/client';
+
+// Clean-slate migration runs on full page load only (before mocks hydrate from storage)
+runOneTimeDataReset();
+
+import { initializeRealtime } from './lib/socket';
 
 // TanStack Query Client configuration
 const queryClient = new QueryClient({
@@ -20,6 +28,9 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Start Real-Time WebSockets
+initializeRealtime(queryClient);
 
 // Start MSW whenever VITE_USE_MOCKS !== 'false' (both in dev and on Vercel preview/demos)
 // Vendor auth endpoints can be passed through to a real local backend via MSW passthrough
@@ -65,7 +76,10 @@ prepareApp()
           <BrowserRouter>
             <VendorAuthProvider>
               <AdminAuthProvider>
-                <AppRoutes />
+                <BuyerAuthProvider>
+                  <AppRoutes />
+                  <VendorStatusNotifier />
+                </BuyerAuthProvider>
               </AdminAuthProvider>
             </VendorAuthProvider>
           </BrowserRouter>

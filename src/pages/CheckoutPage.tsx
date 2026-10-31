@@ -1,25 +1,34 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
-  ShieldCheck, 
   CreditCard, 
   Truck, 
-  CheckCircle2, 
   Lock, 
   Plus, 
   Smartphone, 
-  Banknote,
-  Building,
-  Check
+  Banknote, 
+  Building, 
+  Check,
+  Tag,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { INDIAN_STATES } from '../data/indianStates';
-import { formatRupees, FREE_SHIPPING_THRESHOLD, DELIVERY_CHARGE } from '../utils/currency';
-import { ordersApi } from '../api';
+import { formatRupees } from '../utils/currency';
+import { useLivePlatformSettings, syncBuyerOrderToAdmin } from '../utils/platformSync';
+import { ordersApi, type CouponValidationResponse } from '../api';
 import type { BuyerAddress, BuyerOrder } from '../types';
 
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
+  const {
+    freeShippingThreshold,
+    standardDeliveryFee,
+    maintenanceMode,
+    settings: platformSettings,
+  } = useLivePlatformSettings();
+  const deliveryDays = platformSettings.shipping?.estimated_delivery_days ?? 4;
   const { 
     cart, 
     cartTotal, 
@@ -27,8 +36,9 @@ export const CheckoutPage: React.FC = () => {
     addresses, 
     addAddress, 
     addOrder, 
-    showToast,
-    user 
+    showToast, 
+    user, 
+    setIsLoginOpen,
   } = useStore();
 
   // Address selection & form state
@@ -40,29 +50,28 @@ export const CheckoutPage: React.FC = () => {
   );
 
   const [fullName, setFullName] = useState<string>(user?.name || '');
-  const [phone, setPhone] = useState<string>(user?.phone || '9876543210');
+  const [phone, setPhone] = useState<string>(user?.phone || '');
   const [street, setStreet] = useState<string>('');
   const [landmark, setLandmark] = useState<string>('');
-  const [city, setCity] = useState<string>('Bengaluru');
+  const [city, setCity] = useState<string>('');
   const [state, setState] = useState<string>('Karnataka');
-  const [postalCode, setPostalCode] = useState<string>('560103');
+  const [postalCode, setPostalCode] = useState<string>('');
   const [addressType, setAddressType] = useState<'Home' | 'Work' | 'Other'>('Home');
 
-  // Delivery Speed (Standard Eco Delivery only)
-  const deliverySpeed: 'standard' = 'standard';
 
   // Payment Method State
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'upi' | 'card' | 'netbanking'>('upi');
-  const [upiId, setUpiId] = useState<string>('buyer@okaxis');
+  const [upiId, setUpiId] = useState<string>('');
   const [cardNumber, setCardNumber] = useState<string>('');
   const [cardExpiry, setCardExpiry] = useState<string>('');
   const [cardCvv, setCardCvv] = useState<string>('');
   const [cardHolder, setCardHolder] = useState<string>('');
 
-  // Promo code
+  // Promo / Coupon code state
   const [promoCode, setPromoCode] = useState<string>('');
-  const [promoApplied, setPromoApplied] = useState<boolean>(false);
-  const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResponse | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // If cart is empty, render friendly empty state
@@ -90,48 +99,114 @@ export const CheckoutPage: React.FC = () => {
     );
   }
 
-  // Financial calculations
-  const baseDelivery = cartTotal >= FREE_SHIPPING_THRESHOLD ? 0 : DELIVERY_CHARGE;
+  // Financial calculations: Standard delivery + dynamic coupon discount
+  const baseDelivery = cartTotal >= freeShippingThreshold ? 0 : standardDeliveryFee;
   const deliveryCharge = baseDelivery;
-  const discountAmount = promoApplied ? (cartTotal * discountPercent) / 100 : 0;
+
+  let discountAmount = 0;
+  if (appliedCoupon && appliedCoupon.valid) {
+    if (appliedCoupon.discountType === 'FIXED') {
+      discountAmount = appliedCoupon.discountValue || 0;
+    } else {
+      const pct = appliedCoupon.discountValue || appliedCoupon.discountPercent || 0;
+      discountAmount = Math.round((cartTotal * pct) / 100);
+      if (appliedCoupon.maxDiscountAmount && discountAmount > appliedCoupon.maxDiscountAmount) {
+        discountAmount = appliedCoupon.maxDiscountAmount;
+      }
+    }
+    discountAmount = Math.min(discountAmount, cartTotal);
+  }
+
   const finalPayable = Math.max(0, cartTotal - discountAmount + deliveryCharge);
+  const estimatedDate = new Date(Date.now() + deliveryDays * 86400000).toLocaleDateString('en-IN', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!promoCode.trim()) return;
+    const code = promoCode.trim().toUpperCase();
+    if (!code) return;
+
+    setIsValidatingCoupon(true);
+    setCouponError(null);
 
     try {
-      const res = await ordersApi.validateCoupon(promoCode);
+      const res = await ordersApi.validateCoupon(code, cartTotal);
       if (res.data?.valid) {
-        setPromoApplied(true);
-        setDiscountPercent(res.data.discountPercent || 10);
-        showToast(res.data.message || 'Coupon applied successfully!', 'success');
+        setAppliedCoupon(res.data);
+        setPromoCode('');
+        showToast(res.data.message || `Coupon "${code}" applied!`, 'success');
       } else {
-        setPromoApplied(false);
-        setDiscountPercent(0);
-        showToast(res.data?.message || 'Invalid coupon. Try "CHILLY10"', 'warning');
+        setCouponError(res.data?.message || 'Invalid or ineligible coupon code.');
+        showToast(res.data?.message || 'Invalid coupon code.', 'warning');
       }
     } catch {
-      if (promoCode.toUpperCase() === 'CHILLY10') {
-        setPromoApplied(true);
-        setDiscountPercent(10);
+      // Local fallback for offline / test
+      if (code === 'POD') {
+        if (cartTotal >= 500) {
+          setAppliedCoupon({
+            valid: true,
+            code: 'POD',
+            discountType: 'FIXED',
+            discountValue: 50,
+            message: 'Flat ₹50 OFF applied!',
+          });
+          setPromoCode('');
+          showToast('Coupon "POD" applied! Flat ₹50 discount.', 'success');
+        } else {
+          setCouponError('Minimum order amount of ₹500 required for POD coupon.');
+          showToast('Minimum order of ₹500 required for POD coupon.', 'warning');
+        }
+      } else if (code === 'CHILLY10') {
+        setAppliedCoupon({
+          valid: true,
+          code: 'CHILLY10',
+          discountType: 'PERCENTAGE',
+          discountValue: 10,
+          discountPercent: 10,
+          message: '10% discount applied!',
+        });
+        setPromoCode('');
         showToast('Coupon "CHILLY10" applied! 10% discount added.', 'success');
       } else {
-        showToast('Invalid coupon. Try "CHILLY10"', 'warning');
+        setCouponError('Invalid coupon code.');
+        showToast('Invalid coupon code.', 'warning');
       }
+    } finally {
+      setIsValidatingCoupon(false);
     }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponError(null);
+    showToast('Coupon removed.', 'info');
   };
 
   const handleFillTestCard = () => {
     setCardNumber('4532 •••• •••• 8910');
     setCardExpiry('12/28');
     setCardCvv('421');
-    setCardHolder(fullName || 'Ananya Sharma');
-    showToast('Demo payment card details filled.', 'info');
+    setCardHolder(fullName || user?.name || '');
+    showToast('Test payment card details applied.', 'info');
   };
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (maintenanceMode) {
+      showToast('The marketplace is under maintenance. Ordering is temporarily paused.', 'warning');
+      return;
+    }
+    if (!user?.isLoggedIn) {
+      showToast('Please sign in to place an order.', 'warning');
+      setIsLoginOpen(true);
+      return;
+    }
+
+    const customerId = (user.email || user.phone || '').trim().toLowerCase();
     setIsSubmitting(true);
 
     try {
@@ -161,8 +236,9 @@ export const CheckoutPage: React.FC = () => {
 
       const generatedId = `CF-${Math.floor(100000 + Math.random() * 900000)}`;
 
-      // Mock API call to create order
-      await ordersApi.createOrder({
+      // API call to create order with matching orderNumber
+      const orderRes = await ordersApi.createOrder({
+        orderNumber: generatedId,
         items: cart.map((c) => ({
           productId: c.product.id,
           name: c.product.name,
@@ -172,15 +248,21 @@ export const CheckoutPage: React.FC = () => {
         totalAmount: finalPayable,
         deliveryCharge,
         discountAmount,
+        couponCode: appliedCoupon?.code,
         postalCode: shippingAddress.postalCode,
         customerName: shippingAddress.fullName,
-        customerEmail: user?.email,
+        customerEmail: customerId,
         customerPhone: shippingAddress.phone,
+        paymentMethod,
+        deliverySpeed: 'standard',
+        shippingAddress,
       });
 
+      const finalOrderId = orderRes.data?.orderNumber || generatedId;
+
       const newOrder: BuyerOrder = {
-        id: generatedId,
-        createdAt: new Date().toISOString(),
+        id: finalOrderId,
+        createdAt: orderRes.data?.createdAt || new Date().toISOString(),
         status: 'Placed',
         items: [...cart],
         subtotal: cartTotal,
@@ -190,14 +272,18 @@ export const CheckoutPage: React.FC = () => {
         shippingAddress,
         paymentMethod,
         paymentId: paymentMethod === 'upi' ? `upi_${Date.now()}` : paymentMethod === 'card' ? `card_${Date.now()}` : undefined,
-        deliverySpeed,
-        estimatedDeliveryDate: 'In 3-5 business days',
+        deliverySpeed: 'standard',
+        estimatedDeliveryDate: `By ${estimatedDate}`,
+        customerEmail: customerId,
       };
 
       addOrder(newOrder);
+      // Push into the Super Admin order queue (idempotent — one admin order per checkout)
+      syncBuyerOrderToAdmin(newOrder);
+
       clearCart();
       showToast('Order confirmed! Generating receipt...', 'success');
-      navigate(`/order-success/${generatedId}`);
+      navigate(`/order-success/${finalOrderId}`);
     } catch (err) {
       console.error('Order error:', err);
       showToast('Error finalizing order. Please try again.', 'warning');
@@ -219,9 +305,19 @@ export const CheckoutPage: React.FC = () => {
           <span className="font-semibold text-[#223B28]">Secure Checkout</span>
         </div>
 
-        <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#223B28] mb-8 tracking-tight">
+        <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#223B28] mb-6 tracking-tight">
           Checkout & Delivery
         </h1>
+
+        {/* Real-time Super Admin Maintenance Alert */}
+        {maintenanceMode && (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs sm:text-sm flex items-center gap-3">
+            <span className="text-base">⚠️</span>
+            <span>
+              <strong>Scheduled Maintenance:</strong> Ordering is temporarily paused while we perform platform maintenance. Please check back shortly.
+            </span>
+          </div>
+        )}
 
         <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
           
@@ -446,14 +542,14 @@ export const CheckoutPage: React.FC = () => {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <Truck className="w-4 h-4 text-[#2E4D34]" />
-                      <span className="text-sm font-bold text-[#223B28]">Standard Eco Delivery</span>
+                      <span className="text-sm font-bold text-[#223B28]">Standard Delivery</span>
                     </div>
                     <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#2E4D34]/10 text-[#2E4D34]">
-                      {baseDelivery === 0 ? 'FREE DELIVERY' : `+ ₹${DELIVERY_CHARGE}`}
+                      {baseDelivery === 0 ? 'FREE DELIVERY' : `+ ${formatRupees(standardDeliveryFee)}`}
                     </span>
                   </div>
                   <p className="text-xs text-[#6C7B6D] mt-1.5 leading-relaxed">
-                    Delivered in 3-5 business days across India. Hand-packed in 100% plastic-free, recyclable organic kraft boxes.
+                    Delivered in about {deliveryDays} business days across India (estimated by {estimatedDate}).
                   </p>
                 </div>
               </div>
@@ -659,28 +755,60 @@ export const CheckoutPage: React.FC = () => {
               </div>
 
               {/* Coupon Code Section */}
-              <div className="pt-3 border-t border-[#ECE7DD]">
+              <div className="pt-3 border-t border-[#ECE7DD] space-y-2">
+                {appliedCoupon && appliedCoupon.valid ? (
+                  <div className="p-3 bg-[#EAF1EA] rounded-xl border border-[#C4D3C2] flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Tag className="w-4 h-4 text-[#2E4D34] shrink-0" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono font-bold text-xs text-[#223B28] bg-white px-2 py-0.5 rounded border border-[#C4D3C2]">
+                            {appliedCoupon.code}
+                          </span>
+                          <span className="text-[11px] font-semibold text-[#2E4D34]">
+                            {appliedCoupon.discountType === 'FIXED' ? `Flat ${formatRupees(discountAmount)} OFF` : `${appliedCoupon.discountValue || 10}% OFF`}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-[#506052] truncate mt-0.5">{appliedCoupon.message}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="px-2.5 py-1 text-xs font-semibold text-[#DC2626] hover:bg-white rounded-lg transition-colors flex items-center gap-1 shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Remove</span>
+                    </button>
+                  </div>
+                ) : null}
+
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                    placeholder="Enter Coupon (e.g. CHILLY10)"
-                    className="flex-1 px-3 py-2 text-xs rounded-xl bg-[#FAF7F2] border border-[#D5C9B3] focus:outline-none focus:border-[#2E4D34]"
+                    onChange={(e) => {
+                      setPromoCode(e.target.value.toUpperCase());
+                      if (couponError) setCouponError(null);
+                    }}
+                    placeholder="Enter Coupon (e.g. POD, CHILLY10)"
+                    className="flex-1 px-3 py-2 text-xs rounded-xl bg-[#FAF7F2] border border-[#D5C9B3] focus:outline-none focus:border-[#2E4D34] font-mono uppercase"
                   />
                   <button
                     type="button"
+                    disabled={isValidatingCoupon || !promoCode.trim()}
                     onClick={handleApplyCoupon}
-                    className="px-4 py-2 bg-[#2E4D34] hover:bg-[#233B27] text-white text-xs font-semibold rounded-xl"
+                    className="px-4 py-2 bg-[#2E4D34] hover:bg-[#233B27] disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-colors"
                   >
-                    Apply
+                    {isValidatingCoupon ? 'Validating...' : appliedCoupon ? 'Switch' : 'Apply'}
                   </button>
                 </div>
-                {promoApplied && (
-                  <span className="text-[11px] text-[#2E4D34] font-semibold flex items-center gap-1 mt-1.5">
-                    <CheckCircle2 className="w-3 h-3 text-[#2E4D34]" />
-                    <span>Coupon applied! 10% discount saved.</span>
-                  </span>
+
+                {couponError && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-[#DC2626] font-medium pt-0.5">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{couponError}</span>
+                  </div>
                 )}
               </div>
 
@@ -692,8 +820,8 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 {discountAmount > 0 && (
-                  <div className="flex justify-between text-[#D82C20]">
-                    <span>Coupon Discount</span>
+                  <div className="flex justify-between text-[#D82C20] font-medium">
+                    <span>Coupon Discount {appliedCoupon ? `(${appliedCoupon.code})` : ''}</span>
                     <span>- {formatRupees(discountAmount)}</span>
                   </div>
                 )}
@@ -703,7 +831,7 @@ export const CheckoutPage: React.FC = () => {
                   <span>{deliveryCharge === 0 ? <strong className="text-[#2E4D34]">FREE</strong> : formatRupees(deliveryCharge)}</span>
                 </div>
 
-                <div className="pt-3 border-t border-[#ECE7DD] flex justify-between items-baseline text-sm sm:text-base font-bold text-[#223B28]">
+                <div className="flex justify-between pt-3 border-t border-[#ECE7DD] items-baseline text-sm sm:text-base font-bold text-[#223B28]">
                   <span>Total Payable</span>
                   <span className="font-serif text-xl sm:text-2xl text-[#2E4D34]">
                     {formatRupees(finalPayable)}
@@ -714,20 +842,23 @@ export const CheckoutPage: React.FC = () => {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isSubmitting}
+                id="checkout-place-order"
+                disabled={isSubmitting || maintenanceMode}
                 className="w-full py-3.5 bg-[#2E4D34] hover:bg-[#233B27] disabled:opacity-75 text-white text-xs sm:text-sm font-bold rounded-full shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
                 <Lock className="w-4 h-4" />
-                <span>{isSubmitting ? 'Placing Order...' : `Confirm & Pay ${formatRupees(finalPayable)}`}</span>
+                <span>
+                  {maintenanceMode
+                    ? 'Ordering paused for maintenance'
+                    : isSubmitting
+                    ? 'Placing Order...'
+                    : !user?.isLoggedIn
+                    ? 'Sign in to place order'
+                    : `Confirm & Pay ${formatRupees(finalPayable)}`}
+                </span>
               </button>
 
-              <div className="pt-2 text-center text-[10px] text-[#7E8F80] space-y-1">
-                <p className="flex items-center justify-center gap-1 text-[#2E4D34] font-semibold">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>256-bit Bank Grade Encrypted Checkout</span>
-                </p>
-                <p>7-Day Hassle-Free Returns on eligible items</p>
-              </div>
+
 
             </div>
           </div>

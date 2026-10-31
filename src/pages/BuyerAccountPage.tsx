@@ -10,7 +10,10 @@ import {
   Plus, 
   Trash2, 
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Printer,
+  X,
+  FileText
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { formatRupees } from '../utils/currency';
@@ -20,12 +23,14 @@ export const BuyerAccountPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTab = searchParams.get('tab') || 'orders';
+  const [selectedServiceInvoice, setSelectedServiceInvoice] = useState<any>(null);
 
   const { 
     user, 
     logoutUser, 
     orders, 
     cancelOrder, 
+    requestReturn,
     bookings, 
     cancelBooking, 
     addresses, 
@@ -39,12 +44,12 @@ export const BuyerAccountPage: React.FC = () => {
 
   const [isAddingAddress, setIsAddingAddress] = useState<boolean>(false);
   const [newFullName, setNewFullName] = useState<string>(user?.name || '');
-  const [newPhone, setNewPhone] = useState<string>(user?.phone || '9876543210');
+  const [newPhone, setNewPhone] = useState<string>(user?.phone || '');
   const [newStreet, setNewStreet] = useState<string>('');
   const [newLandmark, setNewLandmark] = useState<string>('');
-  const [newCity, setNewCity] = useState<string>('Bengaluru');
+  const [newCity, setNewCity] = useState<string>('');
   const [newState, setNewState] = useState<string>('Karnataka');
-  const [newPostalCode, setNewPostalCode] = useState<string>('560103');
+  const [newPostalCode, setNewPostalCode] = useState<string>('');
   const [newType, setNewType] = useState<'Home' | 'Work' | 'Other'>('Home');
 
   const setTab = (tab: string) => {
@@ -102,7 +107,7 @@ export const BuyerAccountPage: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-[#6C7B6D] mt-0.5">
-                {user?.email || 'buyer@example.com'} • +91 {user?.phone || '9876543210'}
+                {user?.email}{user?.phone ? ` • +91 ${user.phone}` : ''}
               </p>
             </div>
           </div>
@@ -252,13 +257,46 @@ export const BuyerAccountPage: React.FC = () => {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {ord.status !== 'Cancelled' && ord.status !== 'Delivered' && (
+                          {(() => {
+                            const hoursSinceOrder = (Date.now() - new Date(ord.createdAt).getTime()) / (1000 * 60 * 60);
+                            const isWithin24h = hoursSinceOrder <= 24;
+                            if (ord.status === 'Placed' || ord.status === 'Processing') {
+                              if (isWithin24h) {
+                                return (
+                                  <button
+                                    onClick={() => {
+                                      if (window.confirm(`Are you sure you want to cancel order #${ord.id}? Cancellations are only permitted within 24 hours of placement prior to courier dispatch. Stock will be restored and super admin alerted.`)) {
+                                        cancelOrder(ord.id);
+                                      }
+                                    }}
+                                    className="px-3.5 py-1.5 text-xs text-[#D82C20] hover:bg-[#FAF0ED] rounded-xl font-medium transition-colors border border-[#F5C2B8]"
+                                  >
+                                    Cancel Order
+                                  </button>
+                                );
+                              } else {
+                                return (
+                                  <span className="text-[11px] text-[#8E9B90] italic">
+                                    Dispatch in progress (cancellation closed)
+                                  </span>
+                                );
+                              }
+                            }
+                            return null;
+                          })()}
+                          {ord.status === 'Delivered' && !ord.returnRequested && (
                             <button
-                              onClick={() => cancelOrder(ord.id)}
-                              className="px-3.5 py-1.5 text-xs text-[#D82C20] hover:bg-[#FAF0ED] rounded-xl font-medium transition-colors"
+                              onClick={() => {
+                                const reason = window.prompt('Reason for return (e.g. damaged, wrong item):');
+                                if (reason && reason.trim()) requestReturn(ord.id, reason.trim());
+                              }}
+                              className="px-3.5 py-1.5 text-xs text-[#9A5B13] hover:bg-[#FBF3E6] rounded-xl font-medium transition-colors"
                             >
-                              Cancel Order
+                              Request Return
                             </button>
+                          )}
+                          {ord.status === 'Delivered' && ord.returnRequested && (
+                            <span className="px-3 py-1.5 text-[11px] text-[#9A5B13] font-semibold">Return requested</span>
                           )}
                           <Link
                             to={`/order-success/${ord.id}`}
@@ -311,13 +349,19 @@ export const BuyerAccountPage: React.FC = () => {
                           <h3 className="font-serif text-lg font-bold text-[#223B28]">{bk.serviceTitle}</h3>
                         </div>
                         <span className={`text-[10px] font-bold px-3 py-1 rounded-full ${
-                          bk.status === 'Confirmed' ? 'bg-[#EAF1EA] text-[#2E4D34]' : bk.status === 'Cancelled' ? 'bg-[#FAF0ED] text-[#D82C20]' : 'bg-[#FFF8E6] text-[#B7791F]'
+                          bk.status === 'Confirmed'
+                            ? 'bg-[#EAF1EA] text-[#2E4D34]'
+                            : bk.status === 'Completed'
+                            ? 'bg-[#EBF3FF] text-[#1D63ED]'
+                            : bk.status === 'Cancelled'
+                            ? 'bg-[#FAF0ED] text-[#D82C20]'
+                            : 'bg-[#FFF8E6] text-[#B7791F]'
                         }`}>
                           {bk.status.toUpperCase()}
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
                         <div className="p-3 bg-[#FAF7F2] rounded-xl border border-[#ECE7DD]">
                           <span className="text-[#6C7B6D] block text-[10px]">Preferred Date</span>
                           <span className="font-semibold text-[#223B28]">{bk.preferredDate}</span>
@@ -327,21 +371,38 @@ export const BuyerAccountPage: React.FC = () => {
                           <span className="font-semibold text-[#223B28]">{bk.preferredTime}</span>
                         </div>
                         <div className="p-3 bg-[#FAF7F2] rounded-xl border border-[#ECE7DD]">
+                          <span className="text-[#6C7B6D] block text-[10px]">Contact Phone</span>
+                          <span className="font-semibold text-[#223B28]">{bk.userPhone || 'On File'}</span>
+                        </div>
+                        <div className="p-3 bg-[#FAF7F2] rounded-xl border border-[#ECE7DD]">
                           <span className="text-[#6C7B6D] block text-[10px]">Estimated Price</span>
                           <span className="font-semibold text-[#2E4D34]">{bk.price}</span>
                         </div>
                       </div>
 
-                      {bk.status !== 'Cancelled' && (
-                        <div className="flex justify-end pt-2">
+                      <div className="flex flex-wrap items-center justify-between pt-3 border-t border-[#ECE7DD] gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedServiceInvoice(bk)}
+                          className="inline-flex items-center gap-1.5 text-xs text-[#2E4D34] hover:underline font-semibold"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          <span>Print Service Booking Voucher & Tax Invoice</span>
+                        </button>
+
+                        {bk.status !== 'Cancelled' && bk.status !== 'Completed' && (
                           <button
-                            onClick={() => cancelBooking(bk.id)}
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to cancel your appointment for "${bk.serviceTitle}"? Super Admin will receive an alert and your slot will be released.`)) {
+                                cancelBooking(bk.id);
+                              }
+                            }}
                             className="text-xs text-[#D82C20] hover:underline font-medium"
                           >
                             Cancel Appointment
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   ))
                 )}
@@ -573,6 +634,109 @@ export const BuyerAccountPage: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Printable Service Invoice / Booking Voucher Modal */}
+      {selectedServiceInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 border border-[#ECE7DD] shadow-2xl relative animate-scaleIn">
+            <button
+              onClick={() => setSelectedServiceInvoice(null)}
+              className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-[#FAF7F2] text-[#6C7B6D] transition-colors"
+              aria-label="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 pb-4 border-b border-[#ECE7DD]">
+              <div className="w-10 h-10 rounded-2xl bg-[#EAF1EA] text-[#2E4D34] flex items-center justify-center">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#2E4D34]">CHILLYFLAKES OFFICIAL SERVICES</span>
+                <h3 className="font-serif text-xl font-bold text-[#223B28]">Service Tax Invoice & Appointment Voucher</h3>
+              </div>
+            </div>
+
+            <div className="my-5 p-4 rounded-2xl bg-[#FAF7F2] border border-[#ECE7DD] space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-[#6C7B6D]">Invoice & Voucher #:</span>
+                <strong className="font-mono text-[#223B28]">INV-SRV-{selectedServiceInvoice.id}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#6C7B6D]">Booking Reference:</span>
+                <strong className="font-mono text-[#2E4D34]">{selectedServiceInvoice.id}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#6C7B6D]">Booking Status:</span>
+                <span className="font-bold text-[#2E4D34] uppercase text-[10px] bg-white px-2 py-0.5 rounded border border-[#ECE7DD]">
+                  {selectedServiceInvoice.status}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs border-b border-[#ECE7DD] pb-5">
+              <h4 className="font-serif font-bold text-sm text-[#223B28]">Appointment Particulars</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-[#6C7B6D] block text-[10px]">Service Title</span>
+                  <span className="font-semibold text-[#223B28]">{selectedServiceInvoice.serviceTitle}</span>
+                </div>
+                <div>
+                  <span className="text-[#6C7B6D] block text-[10px]">Client Name</span>
+                  <span className="font-semibold text-[#223B28]">{selectedServiceInvoice.userName}</span>
+                </div>
+                <div>
+                  <span className="text-[#6C7B6D] block text-[10px]">Scheduled Date</span>
+                  <span className="font-semibold text-[#223B28]">{selectedServiceInvoice.preferredDate}</span>
+                </div>
+                <div>
+                  <span className="text-[#6C7B6D] block text-[10px]">Time Slot</span>
+                  <span className="font-semibold text-[#223B28]">{selectedServiceInvoice.preferredTime}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="my-4 space-y-2 text-xs">
+              <h4 className="font-serif font-bold text-sm text-[#223B28]">Tax & Fee Breakdown</h4>
+              <div className="flex justify-between text-[#6C7B6D]">
+                <span>Service Base Charge</span>
+                <span className="font-semibold text-[#223B28]">{selectedServiceInvoice.price || '₹1,499'}</span>
+              </div>
+              <div className="flex justify-between text-[#6C7B6D]">
+                <span>Applicable GST (18% Services Rate)</span>
+                <span>Included in price</span>
+              </div>
+              <div className="pt-2 border-t border-[#ECE7DD] flex justify-between text-sm font-bold text-[#223B28]">
+                <span>Total Amount:</span>
+                <span className="font-serif text-[#2E4D34]">{selectedServiceInvoice.price || '₹1,499'}</span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-[#EAF1EA] rounded-xl text-[11px] text-[#243F29] border border-[#CDE0CC] flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 flex-shrink-0" />
+              <span>Verified Artisan Service • Authentic Craft & Wellness • ChillyFlakes Marketplace</span>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedServiceInvoice(null)}
+                className="px-4 py-2 rounded-xl border border-[#ECE7DD] text-xs font-semibold text-[#6C7B6D] hover:bg-[#FAF7F2]"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-[#2E4D34] text-white text-xs font-semibold hover:bg-[#233B28] shadow-xs"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print Invoice / Voucher</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

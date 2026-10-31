@@ -93,7 +93,7 @@ export const RequireVendorOnboarding: React.FC<{ children?: React.ReactNode }> =
     return <Navigate to="/vendor/dashboard" replace />;
   }
 
-  if (user.vendor_status === 'pending_verification') {
+  if (user.vendor_status === 'pending_verification' && !user.email_verified) {
     return <Navigate to="/vendor/verify-otp" replace />;
   }
 
@@ -136,7 +136,7 @@ export const RequireVendorStatusGate: React.FC<{ children?: React.ReactNode }> =
     return <Navigate to="/vendor/dashboard" replace />;
   }
 
-  if (user.vendor_status === 'pending_verification') {
+  if (user.vendor_status === 'pending_verification' && !user.email_verified) {
     return <Navigate to="/vendor/verify-otp" replace />;
   }
 

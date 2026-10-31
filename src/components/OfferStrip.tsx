@@ -1,7 +1,11 @@
 import React from 'react';
 import { ShieldCheck, Truck, RefreshCw, CreditCard } from 'lucide-react';
+import { useLivePlatformSettings } from '../utils/platformSync';
+import { formatRupees } from '../utils/currency';
 
 export const OfferStrip: React.FC = () => {
+  const { freeShippingThreshold } = useLivePlatformSettings();
+
   return (
     <section className="max-w-[1360px] mx-auto px-3 sm:px-6 py-2">
       <div className="bg-white rounded-2xl border border-[#E2E7DF] p-4 sm:p-5 grid grid-cols-2 md:grid-cols-4 gap-4 text-[#1D251E] shadow-soft">
@@ -22,7 +26,7 @@ export const OfferStrip: React.FC = () => {
           </div>
           <div>
             <p className="text-xs font-bold text-[#1D251E] leading-none">Free Delivery</p>
-            <p className="text-[11px] text-[#5F6D61] mt-1">On orders above ₹499</p>
+            <p className="text-[11px] text-[#5F6D61] mt-1">On orders above {formatRupees(freeShippingThreshold)}</p>
           </div>
         </div>
 

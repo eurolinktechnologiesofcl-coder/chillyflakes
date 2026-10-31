@@ -74,14 +74,8 @@ export const AdminSellerReviewModal: React.FC<AdminSellerReviewModalProps> = ({
   const [flaggedSections, setFlaggedSections] = useState<string[]>([]);
   const [actionConfirm, setActionConfirm] = useState<'approve' | 'reject' | 'suspend' | 'reactivate' | null>(null);
 
-  // Review checklist states (advisory only)
-  const [checklist, setChecklist] = useState({
-    readable: false,
-    namesMatch: false,
-    taxFormatValid: false,
-    addressMatches: false,
-    noProhibitedItems: false,
-  });
+  const isPdfDoc = (doc: SellerKycDocument) =>
+    doc.mime_type === 'application/pdf' || /\.pdf$/i.test(doc.file_url || doc.file_name || '');
 
   // Reveal handler
   const handleReveal = async (field: 'tax_id' | 'pan' | 'bank_account') => {
@@ -190,11 +184,6 @@ export const AdminSellerReviewModal: React.FC<AdminSellerReviewModalProps> = ({
       toast.error(err.response?.data?.message || 'Failed to execute decision.');
     }
   };
-
-  // Required docs check
-  const requiredDocs = seller?.documents || [];
-  const unverifiedDocs = requiredDocs.filter((d) => d.status !== 'verified');
-  const allRequiredVerified = requiredDocs.length > 0 && unverifiedDocs.length === 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-xs overflow-y-auto">
@@ -419,6 +408,23 @@ export const AdminSellerReviewModal: React.FC<AdminSellerReviewModalProps> = ({
                       key={doc.id}
                       className="p-3.5 rounded-xl border border-[#F0EDE6] bg-[#FDFCF9] space-y-2 hover:border-[#D1DDD0] transition-colors"
                     >
+                      {/* Thumbnail — click to open full preview */}
+                      <button
+                        type="button"
+                        onClick={() => setPreviewDoc(doc)}
+                        className="block w-full h-40 rounded-lg overflow-hidden border border-[#EAE5DB] bg-white hover:ring-2 hover:ring-[#2E4D34]/40 transition"
+                        title="Click to view full document"
+                      >
+                        {isPdfDoc(doc) ? (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-[#2E4D34] gap-1">
+                            <FileText className="w-10 h-10" />
+                            <span className="text-[11px] font-semibold">PDF — click to view</span>
+                          </div>
+                        ) : (
+                          <img src={doc.file_url} alt={doc.title} className="w-full h-full object-contain bg-[#FAF7F2]" loading="lazy" />
+                        )}
+                      </button>
+
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="flex items-center gap-2">
@@ -440,15 +446,16 @@ export const AdminSellerReviewModal: React.FC<AdminSellerReviewModalProps> = ({
                           </p>
                         </div>
 
-                        {/* Lightbox Trigger */}
-                        <button
-                          type="button"
-                          onClick={() => setPreviewDoc(doc)}
+                        {/* Open original in new tab */}
+                        <a
+                          href={doc.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="p-1.5 text-[#5F6D61] hover:text-[#2E4D34] hover:bg-[#FAF7F2] rounded-lg transition-colors"
-                          title="Open document in secure lightbox preview"
+                          title="Open original in new tab"
                         >
                           <ExternalLink className="w-4 h-4" />
-                        </button>
+                        </a>
                       </div>
 
                       {doc.rejection_reason && (
@@ -567,65 +574,7 @@ export const AdminSellerReviewModal: React.FC<AdminSellerReviewModalProps> = ({
                 </div>
               </div>
 
-              {/* 4. ADVISORY REVIEW CHECKLIST */}
-              <div className="bg-[#FAF7F2] rounded-2xl border border-[#EAE5DB] p-4 space-y-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#5F6D61] block">
-                  Auditor Review Checklist (Advisory Helper)
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={checklist.readable}
-                      onChange={(e) => setChecklist({ ...checklist, readable: e.target.checked })}
-                      className="rounded border-[#D1DDD0] text-[#2E4D34] focus:ring-[#2E4D34]"
-                    />
-                    <span>All uploaded KYC scans are legible and complete</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={checklist.namesMatch}
-                      onChange={(e) => setChecklist({ ...checklist, namesMatch: e.target.checked })}
-                      className="rounded border-[#D1DDD0] text-[#2E4D34] focus:ring-[#2E4D34]"
-                    />
-                    <span>Legal name matches consistently across documents</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={checklist.taxFormatValid}
-                      onChange={(e) => setChecklist({ ...checklist, taxFormatValid: e.target.checked })}
-                      className="rounded border-[#D1DDD0] text-[#2E4D34] focus:ring-[#2E4D34]"
-                    />
-                    <span>PAN and GSTIN checksums appear valid</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={checklist.addressMatches}
-                      onChange={(e) => setChecklist({ ...checklist, addressMatches: e.target.checked })}
-                      className="rounded border-[#D1DDD0] text-[#2E4D34] focus:ring-[#2E4D34]"
-                    />
-                    <span>Proof of address matches declared pickup warehouse</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer sm:col-span-2">
-                    <input
-                      type="checkbox"
-                      checked={checklist.noProhibitedItems}
-                      onChange={(e) => setChecklist({ ...checklist, noProhibitedItems: e.target.checked })}
-                      className="rounded border-[#D1DDD0] text-[#2E4D34] focus:ring-[#2E4D34]"
-                    />
-                    <span>No prohibited or hazardous categories declared</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* 5. REVIEW HISTORY TIMELINE */}
+              {/* 4. REVIEW HISTORY TIMELINE */}
               {seller.review_history && seller.review_history.length > 0 && (
                 <div className="bg-white rounded-2xl border border-[#EAE5DB] p-5 shadow-2xs space-y-3">
                   <div className="flex items-center gap-2 border-b border-[#F0EDE6] pb-2 text-xs font-bold text-[#223B28] uppercase tracking-wider">
@@ -702,20 +651,6 @@ export const AdminSellerReviewModal: React.FC<AdminSellerReviewModalProps> = ({
               ))}
             </div>
 
-            {/* Approval Guard Warning if Documents are Missing */}
-            {!allRequiredVerified && (
-              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
-                <div>
-                  <strong>All required documents must be verified before approval.</strong>
-                  <p className="text-[11px] mt-0.5">
-                    Unverified documents:{' '}
-                    {unverifiedDocs.map((d) => d.title).join(', ') || 'No documents uploaded yet.'}
-                  </p>
-                </div>
-              </div>
-            )}
-
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
               <div className="flex items-center gap-2">
@@ -768,7 +703,7 @@ export const AdminSellerReviewModal: React.FC<AdminSellerReviewModalProps> = ({
                 ) : (
                   <button
                     type="button"
-                    disabled={!allRequiredVerified || isApproving}
+                    disabled={isApproving}
                     onClick={() => setActionConfirm('approve')}
                     className="px-6 py-2.5 rounded-xl bg-[#2E4D34] text-white text-xs font-semibold hover:bg-[#233B28] disabled:opacity-50 shadow-xs flex items-center gap-2"
                   >
@@ -784,31 +719,69 @@ export const AdminSellerReviewModal: React.FC<AdminSellerReviewModalProps> = ({
         {/* LIGHTBOX MODAL */}
         {previewDoc && (
           <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl max-w-2xl w-full border border-gray-700 overflow-hidden shadow-2xl animate-scaleUp">
-              <div className="p-4 border-b border-[#EAE5DB] flex items-center justify-between">
+            <div className="bg-white rounded-3xl max-w-4xl w-full border border-gray-700 overflow-hidden shadow-2xl animate-scaleUp flex flex-col max-h-[92vh]">
+              <div className="p-4 border-b border-[#EAE5DB] flex items-center justify-between shrink-0">
                 <div>
                   <h3 className="font-bold text-sm text-[#223B28]">{previewDoc.title}</h3>
                   <p className="text-xs text-[#8E9B90]">{previewDoc.file_name}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setPreviewDoc(null)}
-                  className="p-1.5 text-gray-500 hover:text-black rounded-lg"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="p-6 flex flex-col items-center justify-center bg-[#FAF7F2] min-h-[300px]">
-                <FileText className="w-16 h-16 text-[#2E4D34] mb-3" />
-                <p className="text-xs font-semibold text-[#223B28] mb-1">{previewDoc.title} Preview</p>
-                <p className="text-[11px] text-[#5F6D61] max-w-sm text-center mb-4">
-                  Confidential KYC document. Stored privately and decrypted on-demand with authorized audit tracking.
-                </p>
-                <div className="p-4 bg-white rounded-2xl border border-[#D1DDD0] w-full text-center font-mono text-xs text-[#5F6D61]">
-                  [AUTHENTICATED PREVIEW OF {previewDoc.file_name.toUpperCase()}]
+                <div className="flex items-center gap-2">
+                  <a
+                    href={previewDoc.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#D1DDD0] text-xs font-semibold text-[#2E4D34] hover:bg-[#FAF7F2]"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Open in new tab
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDoc(null)}
+                    className="p-1.5 text-gray-500 hover:text-black rounded-lg"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
+
+              <div className="flex-1 overflow-auto bg-[#FAF7F2] flex items-center justify-center p-4 min-h-[400px]">
+                {isPdfDoc(previewDoc) ? (
+                  <iframe src={previewDoc.file_url} title={previewDoc.title} className="w-full h-[75vh] rounded-xl border border-[#D1DDD0] bg-white" />
+                ) : (
+                  <img src={previewDoc.file_url} alt={previewDoc.title} className="max-w-full max-h-[75vh] object-contain rounded-xl shadow" />
+                )}
+              </div>
+
+              {isVerifierOrSuperAdmin && (
+                <div className="p-3 border-t border-[#EAE5DB] flex items-center justify-end gap-2 shrink-0">
+                  {previewDoc.status !== 'rejected' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRejectingDoc(previewDoc);
+                        setDocRejectReason('');
+                        setPreviewDoc(null);
+                      }}
+                      className="px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 text-xs font-semibold"
+                    >
+                      Reject Document
+                    </button>
+                  )}
+                  {previewDoc.status !== 'verified' && (
+                    <button
+                      type="button"
+                      disabled={isVerifyingDoc}
+                      onClick={async () => {
+                        await handleVerifyDoc(previewDoc);
+                        setPreviewDoc(null);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-[#2E4D34] text-white hover:bg-[#233B28] text-xs font-semibold disabled:opacity-50"
+                    >
+                      Mark Verified
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

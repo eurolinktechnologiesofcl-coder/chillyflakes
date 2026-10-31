@@ -29,7 +29,6 @@ const MODULES: { key: AdminModule; label: string }[] = [
   { key: 'orders', label: 'Orders' },
   { key: 'refunds', label: 'Refunds & Returns' },
   { key: 'payouts', label: 'Finance & Payouts' },
-  { key: 'content', label: 'Content & CMS' },
   { key: 'settings', label: 'Store Settings' },
   { key: 'audit_log', label: 'Audit Log' },
   { key: 'staff_roles', label: 'Staff & Role Permissions' },
@@ -65,7 +64,57 @@ export const AdminStaffPage: React.FC = () => {
     isDeletingRole,
     changeStaffRole,
     isChangingStaffRole,
+    createStaff,
+    isCreatingStaff,
+    setStaffActive,
+    isTogglingStaff,
+    resetStaffPassword,
   } = useAdminRoleMutations();
+
+  // Add staff modal
+  const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
+  const [staffForm, setStaffForm] = useState({ name: '', email: '', phone: '', role_id: '', password: '' });
+  const [staffFormError, setStaffFormError] = useState<string | null>(null);
+
+  const handleAddStaffSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStaffFormError(null);
+    try {
+      await createStaff({
+        name: staffForm.name.trim(),
+        email: staffForm.email.trim(),
+        phone: staffForm.phone.trim(),
+        role_id: staffForm.role_id,
+        password: staffForm.password,
+      });
+      toast.success(`${staffForm.name} can now sign in at /admin/login with ${staffForm.email.trim()}.`);
+      setIsAddStaffOpen(false);
+      setStaffForm({ name: '', email: '', phone: '', role_id: '', password: '' });
+    } catch (err: any) {
+      setStaffFormError(err.response?.data?.message || err.message || 'Failed to create staff member.');
+    }
+  };
+
+  const handleToggleStaff = async (user: AdminStaffUser) => {
+    const activate = user.status !== 'active';
+    try {
+      await setStaffActive({ staffId: user.id, active: activate });
+      toast.success(`${user.name} has been ${activate ? 'reactivated' : 'deactivated'}.`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not update staff status.');
+    }
+  };
+
+  const handleResetPassword = async (user: AdminStaffUser) => {
+    const password = window.prompt(`New login password for ${user.name} (min 6 characters):`);
+    if (!password) return;
+    try {
+      await resetStaffPassword({ staffId: user.id, password });
+      toast.success(`Password updated for ${user.name}.`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not reset password.');
+    }
+  };
 
   // Staff role assignment modal
   const [assigningStaff, setAssigningStaff] = useState<AdminStaffUser | null>(null);
@@ -229,6 +278,22 @@ export const AdminStaffPage: React.FC = () => {
             <span>Refresh</span>
           </button>
 
+          {isSuperAdmin && activeTab === 'staff' && (
+            <button
+              type="button"
+              id="admin-add-staff"
+              onClick={() => {
+                setStaffForm({ name: '', email: '', phone: '', role_id: roles.find((r) => r.id !== 'role_super_admin')?.id || '', password: '' });
+                setStaffFormError(null);
+                setIsAddStaffOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2E4D34] text-white text-xs font-semibold hover:bg-[#233B28] transition-colors shadow-xs"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Staff Member</span>
+            </button>
+          )}
+
           {isSuperAdmin && activeTab === 'roles' && (
             <button
               type="button"
@@ -320,7 +385,13 @@ export const AdminStaffPage: React.FC = () => {
                         </td>
 
                         <td className="py-3.5 px-4">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                              user.status === 'active'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                : 'bg-rose-50 text-rose-800 border-rose-200'
+                            }`}
+                          >
                             {user.status}
                           </span>
                         </td>
@@ -331,16 +402,37 @@ export const AdminStaffPage: React.FC = () => {
 
                         <td className="py-3.5 px-4 text-right">
                           {isSuperAdmin && !isSelf && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setAssigningStaff(user);
-                                setSelectedRoleId(user.role_id);
-                              }}
-                              className="px-3 py-1.5 rounded-xl border border-[#D1DDD0] hover:bg-[#FAF7F2] text-xs font-semibold text-[#2E4D34] transition-colors"
-                            >
-                              Change Role
-                            </button>
+                            <div className="inline-flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAssigningStaff(user);
+                                  setSelectedRoleId(user.role_id);
+                                }}
+                                className="px-3 py-1.5 rounded-xl border border-[#D1DDD0] hover:bg-[#FAF7F2] text-xs font-semibold text-[#2E4D34] transition-colors"
+                              >
+                                Change Role
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleResetPassword(user)}
+                                className="px-3 py-1.5 rounded-xl border border-[#D1DDD0] hover:bg-[#FAF7F2] text-xs font-semibold text-[#5F6D61] transition-colors"
+                              >
+                                Reset Password
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isTogglingStaff}
+                                onClick={() => handleToggleStaff(user)}
+                                className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors disabled:opacity-50 ${
+                                  user.status === 'active'
+                                    ? 'border-rose-200 text-rose-700 hover:bg-rose-50'
+                                    : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                                }`}
+                              >
+                                {user.status === 'active' ? 'Deactivate' : 'Activate'}
+                              </button>
+                            </div>
                           )}
                           {isSelf && (
                             <span className="text-[10px] text-[#8E9B90] font-semibold italic">
@@ -721,6 +813,122 @@ export const AdminStaffPage: React.FC = () => {
           onConfirm={handleDeleteRole}
           onClose={() => setDeletingRole(null)}
         />
+      )}
+
+      {/* ADD STAFF MODAL */}
+      {isAddStaffOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-lg w-full border border-[#EAE5DB] shadow-2xl p-6 animate-scaleUp">
+            <div className="flex items-center justify-between border-b border-[#EAE5DB] pb-4 mb-4">
+              <div>
+                <h2 className="text-base font-bold text-[#223B28]">Add Staff Member</h2>
+                <p className="text-xs text-[#8E9B90]">Creates a working admin console login with the selected role.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddStaffOpen(false)}
+                className="p-1.5 text-[#8E9B90] hover:text-[#223B28] rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {staffFormError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">{staffFormError}</div>
+            )}
+
+            <form onSubmit={handleAddStaffSubmit} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5F6D61] mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    id="staff-name"
+                    value={staffForm.name}
+                    onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-[#D1DDD0] focus:ring-2 focus:ring-[#2E4D34] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5F6D61] mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    id="staff-phone"
+                    value={staffForm.phone}
+                    onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-[#D1DDD0] focus:ring-2 focus:ring-[#2E4D34] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5F6D61] mb-1">Login Email *</label>
+                <input
+                  type="email"
+                  required
+                  id="staff-email"
+                  value={staffForm.email}
+                  onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-[#D1DDD0] focus:ring-2 focus:ring-[#2E4D34] focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5F6D61] mb-1">Role *</label>
+                  <select
+                    required
+                    id="staff-role"
+                    value={staffForm.role_id}
+                    onChange={(e) => setStaffForm({ ...staffForm, role_id: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-[#D1DDD0] focus:ring-2 focus:ring-[#2E4D34] focus:outline-none bg-white"
+                  >
+                    <option value="" disabled>
+                      Select a role
+                    </option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5F6D61] mb-1">
+                    Initial Password *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    minLength={6}
+                    id="staff-password"
+                    value={staffForm.password}
+                    onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-[#D1DDD0] font-mono focus:ring-2 focus:ring-[#2E4D34] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-[#EAE5DB] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsAddStaffOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-[#D1DDD0] text-xs font-semibold text-[#5F6D61]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingStaff}
+                  className="px-5 py-2 rounded-xl bg-[#2E4D34] text-white text-xs font-semibold hover:bg-[#233B28] shadow-xs disabled:opacity-50"
+                >
+                  {isCreatingStaff ? 'Creating...' : 'Create Staff Login'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

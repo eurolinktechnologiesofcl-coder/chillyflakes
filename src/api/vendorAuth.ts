@@ -158,7 +158,23 @@ export async function loginVendor(payload: VendorLoginPayload): Promise<VendorLo
  * Calls GET /api/v1/vendor/auth/me/
  */
 export async function getVendorMe(): Promise<VendorUser> {
-  const response = await axiosClient.get<VendorUser>('/api/v1/vendor/auth/me/');
+  // Real backend: only ever identify a seller with the seller token — never fall back to the
+  // admin token (on /admin pages getAuthToken() prefers cf_admin_token, which made admins look
+  // like vendors). Mock/demo modes keep the session in memory and send no token.
+  const usingRealBackend =
+    import.meta.env.VITE_USE_MOCKS === 'false' && import.meta.env.VITE_DEMO_MODE !== 'true';
+  if (!usingRealBackend) {
+    const response = await axiosClient.get<VendorUser>('/api/v1/vendor/auth/me/');
+    return response.data;
+  }
+
+  const vendorToken = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  if (!vendorToken) {
+    throw { code: 'not_authenticated', message: 'No seller session.' };
+  }
+  const response = await axiosClient.get<VendorUser>('/api/v1/vendor/auth/me/', {
+    headers: { Authorization: `Bearer ${vendorToken}` },
+  });
   return response.data;
 }
 

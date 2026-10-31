@@ -40,6 +40,9 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsLoading(true);
     try {
       const res = await apiAdminLogin({ email, password });
+      if ((res as any).token) {
+        localStorage.setItem('cf_admin_token', (res as any).token);
+      }
       setAdmin(res.user);
       return res.user;
     } finally {
@@ -52,6 +55,7 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       await apiAdminLogout();
     } finally {
+      localStorage.removeItem('cf_admin_token');
       setAdmin(null);
       setIsLoading(false);
     }

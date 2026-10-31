@@ -240,10 +240,10 @@ export const VendorDashboardPage: React.FC = () => {
             {/* 1. Total Sales */}
             <StatCard
               label="Total Sales"
-              value={summary ? formatINR(summary.total_sales_paise) : '₹0'}
+              value={summary ? formatINR(summary.total_sales_paise ?? 0) : '₹0'}
               change={
-                summary
-                  ? { value: summary.changes.total_sales_pct, label: 'vs last month' }
+                summary?.changes
+                  ? { value: summary.changes.total_sales_pct ?? 0, label: 'vs last month' }
                   : undefined
               }
               icon={<TrendingUp className="w-5 h-5" />}
@@ -253,10 +253,10 @@ export const VendorDashboardPage: React.FC = () => {
             {/* 2. Orders Today */}
             <StatCard
               label="Orders Today"
-              value={summary ? summary.orders_today : 0}
+              value={summary?.orders_today ?? 0}
               change={
-                summary
-                  ? { value: summary.changes.orders_today_pct, label: 'vs yesterday' }
+                summary?.changes
+                  ? { value: summary.changes.orders_today_pct ?? 0, label: 'vs yesterday' }
                   : undefined
               }
               icon={<ShoppingBag className="w-5 h-5" />}
@@ -284,10 +284,10 @@ export const VendorDashboardPage: React.FC = () => {
             {/* 5. Available Balance */}
             <StatCard
               label="Available Balance"
-              value={summary ? formatINR(summary.available_balance_paise) : '₹0'}
+              value={summary ? formatINR(summary.available_balance_paise ?? 0) : '₹0'}
               change={
-                summary
-                  ? { value: summary.changes.available_balance_pct, label: 'vs last week' }
+                summary?.changes
+                  ? { value: summary.changes.available_balance_pct ?? 0, label: 'vs last week' }
                   : undefined
               }
               icon={<Wallet className="w-5 h-5" />}
@@ -297,7 +297,7 @@ export const VendorDashboardPage: React.FC = () => {
             {/* 6. Pending Payout */}
             <StatCard
               label="Pending Payout"
-              value={summary ? formatINR(summary.pending_payout_paise) : '₹0'}
+              value={summary ? formatINR(summary.pending_payout_paise ?? 0) : '₹0'}
               subtext="Weekly cycle deposit"
               icon={<ArrowUpRight className="w-5 h-5 text-[#2E4D34]" />}
               isLoading={isSummaryLoading}

@@ -17,16 +17,21 @@ import { createVendorRegisterSchema, type VendorRegisterFormData } from '../sche
 import { useVendorRegister } from '../hooks/useVendorRegister';
 import { useCheckAvailability } from '../hooks/useCheckAvailability';
 import { INDIAN_STATES } from '../../../data/indianStates';
+import { useLivePlatformSettings } from '../../../utils/platformSync';
 import { FormField } from '../../../components/ui/FormField';
 import { PasswordInput } from '../../../components/ui/PasswordInput';
 import { MultiCheckboxGroup, type CheckboxOption } from '../../../components/ui/MultiCheckboxGroup';
 import { Button } from '../../../components/ui/Button';
 import { categories as allCategories } from '../../../data/categories';
+import { useAuth } from '../../../hooks/useAuth';
+import { setAuthToken } from '../../../api/client';
 import type { NormalizedApiError, CategoryId } from '../../../types/auth';
 
 export const VendorRegisterPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { setUser } = useAuth();
+  const { sellerRegistrationOpen } = useLivePlatformSettings();
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [emailEarlyError, setEmailEarlyError] = useState<string | null>(null);
   const [mobileEarlyError, setMobileEarlyError] = useState<string | null>(null);
@@ -170,8 +175,13 @@ export const VendorRegisterPage: React.FC = () => {
         agree_terms: data.agreeTerms,
       },
       {
-        onSuccess: () => {
-          // Navigate to OTP page without passing sensitive tokens or email/mobile in URL
+        onSuccess: (res) => {
+          if (res.token) {
+            setAuthToken(res.token);
+          }
+          if (res.user) {
+            setUser(res.user);
+          }
           navigate('/vendor/verify-otp', { replace: true });
         },
         onError: (err: NormalizedApiError) => {
@@ -329,6 +339,19 @@ export const VendorRegisterPage: React.FC = () => {
         </div>
 
         {/* General Error Banner */}
+        {!sellerRegistrationOpen && (
+          <div
+            role="alert"
+            className="mb-6 p-4 rounded-2xl bg-[#FFF8F7] border border-[#FAC7C3] flex items-start gap-3 text-[#DC2626]"
+          >
+            <AlertOctagon className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div className="text-xs">
+              <p className="font-bold">Seller registrations are closed</p>
+              <p className="mt-0.5">The marketplace is not accepting new seller applications right now. Please check back later.</p>
+            </div>
+          </div>
+        )}
+
         {generalError && (
           <div
             role="alert"
@@ -583,6 +606,7 @@ export const VendorRegisterPage: React.FC = () => {
               variant="primary"
               size="lg"
               isLoading={registerMutation.isPending}
+              disabled={!sellerRegistrationOpen}
               loadingText={t('form.submitting')}
               className="w-full shadow-md hover:shadow-lg"
               leftIcon={<Lock className="w-4 h-4" />}

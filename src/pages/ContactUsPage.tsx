@@ -18,6 +18,7 @@ import {
 import { useStore } from '../context/StoreContext';
 import { INDIAN_STATES } from '../data/indianStates';
 import { LanguageSwitcher } from '../components/ui/LanguageSwitcher';
+import { axiosClient } from '../api/client';
 
 export const ContactUsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -37,7 +38,7 @@ export const ContactUsPage: React.FC = () => {
   // FAQ Accordion State
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim() || !email.trim() || !message.trim()) {
       showToast(t('contact.form.validationError', 'Please fill in your name, email, and message.'), 'warning');
@@ -45,12 +46,38 @@ export const ContactUsPage: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      const ticketId = `CF-TKT-${Math.floor(100000 + Math.random() * 900000)}`;
+    try {
+      const res = await axiosClient.post('/api/v1/contact/', {
+        fullName: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim() || undefined,
+        state,
+        inquiryType,
+        categoryInterest,
+        preferredLanguage,
+        message: message.trim(),
+      });
+      const ticketId = res.data?.ticketId || `CF-TKT-${Math.floor(100000 + Math.random() * 900000)}`;
       setSubmittedTicket(ticketId);
+      showToast(
+        t('contact.form.toastSuccess', {
+          ticketId,
+          defaultValue: `Inquiry #${ticketId} received! Confirmation email sent to ${email.trim()}.`,
+        }),
+        'success'
+      );
+    } catch (err: any) {
+      let errMsg = err.message || err.response?.data?.message || 'Failed to submit inquiry. Please try again.';
+      if (err.fieldErrors && typeof err.fieldErrors === 'object') {
+        const firstField = Object.keys(err.fieldErrors)[0];
+        if (firstField && Array.isArray(err.fieldErrors[firstField]) && err.fieldErrors[firstField][0]) {
+          errMsg = err.fieldErrors[firstField][0];
+        }
+      }
+      showToast(errMsg, 'warning');
+    } finally {
       setIsSubmitting(false);
-      showToast(t('contact.form.toastSuccess', { ticketId, defaultValue: `Inquiry received! Ticket reference: ${ticketId}` }), 'success');
-    }, 800);
+    }
   };
 
   const handleResetForm = () => {
