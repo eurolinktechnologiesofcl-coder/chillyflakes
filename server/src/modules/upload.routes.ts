@@ -7,8 +7,12 @@ import { ApiError } from '../lib/errors.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const uploadsDir = path.resolve(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn('[uploads] Could not create uploads directory:', (err as Error).message);
 }
 
 const storage = multer.diskStorage({

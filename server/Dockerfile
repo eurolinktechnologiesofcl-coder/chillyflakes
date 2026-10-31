@@ -16,6 +16,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY package.json ./
+RUN mkdir -p uploads && chown -R node:node /app
 EXPOSE 4000
 USER node
 # Apply pending migrations, then start

@@ -57,8 +57,12 @@ export function createApp() {
 
   // Static uploads serving
   const uploadsDir = path.resolve(process.cwd(), 'uploads');
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
+  try {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+  } catch (err) {
+    console.warn('[uploads] Could not create uploads directory:', (err as Error).message);
   }
   app.use('/uploads', express.static(uploadsDir));
 
